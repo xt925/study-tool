@@ -1,0 +1,88 @@
+const words_8b = {
+    id: 'grade8b',
+    name: '八年级下册',
+    emoji: '🍂',
+    units: [
+        {
+            id: 'grade8b-unit1',
+            title: 'Unit 1',
+            name: 'Travel and Transport',
+            words: [
+                {
+                    id: 'g8b-u1-w1',
+                    word: 'travel',
+                    phonetic: '/ˈtrævl/',
+                    senses: [{ pos: 'v.', meaning: '旅行' }],
+                    example: 'We travel to Beijing every year.',
+                    exampleMeaning: '我们每年去北京旅行。',
+                },
+                {
+                    id: 'g8b-u1-w2',
+                    word: 'train',
+                    phonetic: '/treɪn/',
+                    senses: [{ pos: 'n.', meaning: '火车' }],
+                    example: 'The train leaves at eight o’clock.',
+                    exampleMeaning: '火车八点出发。',
+                },
+                {
+                    id: 'g8b-u1-w3',
+                    word: 'airport',
+                    phonetic: '/ˈeəpɔːt/',
+                    senses: [{ pos: 'n.', meaning: '机场' }],
+                    example: 'We arrived at the airport early.',
+                    exampleMeaning: '我们很早就到了机场。',
+                },
+                {
+                    id: 'g8b-u1-w4',
+                    word: 'ticket',
+                    phonetic: '/ˈtɪkɪt/',
+                    senses: [{ pos: 'n.', meaning: '票；券' }],
+                    example: 'I bought a ticket to Shanghai.',
+                    exampleMeaning: '我买了一张去上海的票。',
+                },
+                {
+                    id: 'g8b-u1-w5',
+                    word: 'map',
+                    phonetic: '/mæp/',
+                    senses: [{ pos: 'n.', meaning: '地图' }],
+                    example: 'Look at the map and find the city.',
+                    exampleMeaning: '看地图找到这座城市。',
+                },
+                {
+                    id: 'g8b-u1-w6',
+                    word: 'hotel',
+                    phonetic: '/həʊˈtel/',
+                    senses: [{ pos: 'n.', meaning: '旅馆；酒店' }],
+                    example: 'The hotel is near the beach.',
+                    exampleMeaning: '酒店就在海滩附近。',
+                },
+                {
+                    id: 'g8b-u1-w7',
+                    word: 'subway',
+                    phonetic: '/ˈsʌbweɪ/',
+                    senses: [{ pos: 'n.', meaning: '地铁' }],
+                    example: 'The subway is fast and cheap.',
+                    exampleMeaning: '地铁又快又便宜。',
+                },
+                {
+                    id: 'g8b-u1-w8',
+                    word: 'trip',
+                    phonetic: '/trɪp/',
+                    senses: [{ pos: 'n.', meaning: '旅行；出行' }],
+                    example: 'Our school trip was wonderful.',
+                    exampleMeaning: '我们的学校旅行棒极了。',
+                },
+                {
+                    id: 'g8b-u1-w9',
+                    word: 'arrive',
+                    phonetic: '/əˈraɪv/',
+                    senses: [{ pos: 'v.', meaning: '到达' }],
+                    example: 'We arrived home at six.',
+                    exampleMeaning: '我们六点到家。',
+                },
+            ],
+        },
+    ],
+}
+
+export default words_8b

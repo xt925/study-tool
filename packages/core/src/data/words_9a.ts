@@ -1,0 +1,88 @@
+const words_9a = {
+    id: 'grade9a',
+    name: '九年级上册',
+    emoji: '🎯',
+    units: [
+        {
+            id: 'grade9a-unit1',
+            title: 'Unit 1',
+            name: 'Science and Nature',
+            words: [
+                {
+                    id: 'g9a-u1-w1',
+                    word: 'science',
+                    phonetic: '/ˈsaɪəns/',
+                    senses: [{ pos: 'n.', meaning: '科学' }],
+                    example: 'Science helps us understand the world.',
+                    exampleMeaning: '科学帮助我们认识世界。',
+                },
+                {
+                    id: 'g9a-u1-w2',
+                    word: 'experiment',
+                    phonetic: '/ɪkˈsperɪmənt/',
+                    senses: [{ pos: 'n.', meaning: '实验' }],
+                    example: 'We did an experiment in class.',
+                    exampleMeaning: '我们在课堂上做了一个实验。',
+                },
+                {
+                    id: 'g9a-u1-w3',
+                    word: 'discover',
+                    phonetic: '/dɪˈskʌvə(r)/',
+                    senses: [{ pos: 'v.', meaning: '发现' }],
+                    example: 'Scientists discovered a new star.',
+                    exampleMeaning: '科学家发现了一颗新星。',
+                },
+                {
+                    id: 'g9a-u1-w4',
+                    word: 'invent',
+                    phonetic: '/ɪnˈvent/',
+                    senses: [{ pos: 'v.', meaning: '发明' }],
+                    example: 'Who invented the telephone?',
+                    exampleMeaning: '谁发明了电话？',
+                },
+                {
+                    id: 'g9a-u1-w5',
+                    word: 'energy',
+                    phonetic: '/ˈenədʒi/',
+                    senses: [{ pos: 'n.', meaning: '能量；能源' }],
+                    example: 'The sun gives us light and energy.',
+                    exampleMeaning: '太阳给我们光和能量。',
+                },
+                {
+                    id: 'g9a-u1-w6',
+                    word: 'pollution',
+                    phonetic: '/pəˈluːʃn/',
+                    senses: [{ pos: 'n.', meaning: '污染' }],
+                    example: 'Air pollution is a serious problem.',
+                    exampleMeaning: '空气污染是个严重的问题。',
+                },
+                {
+                    id: 'g9a-u1-w7',
+                    word: 'protect',
+                    phonetic: '/prəˈtekt/',
+                    senses: [{ pos: 'v.', meaning: '保护' }],
+                    example: 'We should protect wild animals.',
+                    exampleMeaning: '我们应该保护野生动物。',
+                },
+                {
+                    id: 'g9a-u1-w8',
+                    word: 'environment',
+                    phonetic: '/ɪnˈvaɪrənmənt/',
+                    senses: [{ pos: 'n.', meaning: '环境' }],
+                    example: 'A good environment is important to us.',
+                    exampleMeaning: '良好的环境对我们很重要。',
+                },
+                {
+                    id: 'g9a-u1-w9',
+                    word: 'recycle',
+                    phonetic: '/ˌriːˈsaɪkl/',
+                    senses: [{ pos: 'v.', meaning: '回收利用' }],
+                    example: 'We recycle paper and bottles.',
+                    exampleMeaning: '我们回收利用纸张和瓶子。',
+                },
+            ],
+        },
+    ],
+}
+
+export default words_9a

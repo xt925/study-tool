@@ -1,0 +1,16 @@
+{
+  "name": "@study/core",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*"
+  },
+  "dependencies": {
+    "pinia": "^4.0.3"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.41"
+  }
+}

@@ -1,0 +1,20 @@
+node_modules/
+dist/
+dist-ssr/
+*.local
+.DS_Store
+
+# 编辑器
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# uni-app
+unpackage/
+
+# 生成的音频（由 scripts/generate_audio.py 再生，不进仓库）
+apps/h5/public/audio/

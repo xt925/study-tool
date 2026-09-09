@@ -1,0 +1,88 @@
+const words_9b = {
+    id: 'grade9b',
+    name: '九年级下册',
+    emoji: '🏆',
+    units: [
+        {
+            id: 'grade9b-unit1',
+            title: 'Unit 1',
+            name: 'Health and Life',
+            words: [
+                {
+                    id: 'g9b-u1-w1',
+                    word: 'healthy',
+                    phonetic: '/ˈhelθi/',
+                    senses: [{ pos: 'adj.', meaning: '健康的' }],
+                    example: 'Eating vegetables keeps us healthy.',
+                    exampleMeaning: '吃蔬菜使我们保持健康。',
+                },
+                {
+                    id: 'g9b-u1-w2',
+                    word: 'exercise',
+                    phonetic: '/ˈeksəsaɪz/',
+                    senses: [{ pos: 'n.', meaning: '锻炼；运动' }],
+                    example: 'Doing exercise every day is good for you.',
+                    exampleMeaning: '每天锻炼对你有好处。',
+                },
+                {
+                    id: 'g9b-u1-w3',
+                    word: 'habit',
+                    phonetic: '/ˈhæbɪt/',
+                    senses: [{ pos: 'n.', meaning: '习惯' }],
+                    example: 'He has a good habit of reading.',
+                    exampleMeaning: '他有阅读的好习惯。',
+                },
+                {
+                    id: 'g9b-u1-w4',
+                    word: 'sleep',
+                    phonetic: '/sliːp/',
+                    senses: [{ pos: 'v.', meaning: '睡觉；睡眠' }],
+                    example: 'I sleep eight hours every night.',
+                    exampleMeaning: '我每晚睡八个小时。',
+                },
+                {
+                    id: 'g9b-u1-w5',
+                    word: 'fever',
+                    phonetic: '/ˈfiːvə(r)/',
+                    senses: [{ pos: 'n.', meaning: '发烧' }],
+                    example: 'He had a fever and stayed in bed.',
+                    exampleMeaning: '他发烧了，躺在床上休息。',
+                },
+                {
+                    id: 'g9b-u1-w6',
+                    word: 'medicine',
+                    phonetic: '/ˈmedsn/',
+                    senses: [{ pos: 'n.', meaning: '药；药物' }],
+                    example: 'Take the medicine three times a day.',
+                    exampleMeaning: '这药一天吃三次。',
+                },
+                {
+                    id: 'g9b-u1-w7',
+                    word: 'important',
+                    phonetic: '/ɪmˈpɔːtnt/',
+                    senses: [{ pos: 'adj.', meaning: '重要的' }],
+                    example: 'Health is more important than money.',
+                    exampleMeaning: '健康比金钱更重要。',
+                },
+                {
+                    id: 'g9b-u1-w8',
+                    word: 'active',
+                    phonetic: '/ˈæktɪv/',
+                    senses: [{ pos: 'adj.', meaning: '活跃的；积极的' }],
+                    example: 'He is very active in class.',
+                    exampleMeaning: '他在课堂上很活跃。',
+                },
+                {
+                    id: 'g9b-u1-w9',
+                    word: 'balanced',
+                    phonetic: '/ˈbælənst/',
+                    senses: [{ pos: 'adj.', meaning: '均衡的' }],
+                    example: 'We should eat a balanced diet.',
+                    exampleMeaning: '我们应该均衡饮食。',
+                },
+            ],
+        },
+    ],
+}
+
+export default words_9b
