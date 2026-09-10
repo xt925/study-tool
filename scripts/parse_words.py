@@ -29,7 +29,8 @@ POS_TAGS = {
 POS_RE = re.compile(r"([a-z]+(?:\s+v)?)\.")
 
 # 词组行：英文部分（字母/空格/连字符/撇号/括号，如 lend(sb) a hand）+ 中文部分
-PHRASE_RE = re.compile(r"^([A-Za-z][A-Za-z''\- ()]*?)\s+([一-鿿].*)$")
+# 中文部分允许以括号开头（如 "clear sb's throat (尤指说话前…)清清嗓子"）
+PHRASE_RE = re.compile(r"^([A-Za-z][A-Za-z''\- ()]*?)\s+([一-鿿(].*)$")
 
 
 def clean_meaning(s: str) -> str:
