@@ -7,7 +7,8 @@
 │   └── core/          # @study/core：纯 TS 核心包（单词数据 / 出题逻辑 / 进度存储 / 平台接口）
 ├── apps/
 │   ├── h5/            # H5 端：Vite + Vue3 + TS + vue-router + Pinia + Tailwind
-│   └── uni/           # uni-app 端（Vue3 + TS + Vite），目前只有演示页
+│   └── uni/           # App 壳：HBuilderX 管理的 uni-app 项目（web-view 加载线上 H5），
+│                      # 不在 npm workspaces 内，用 HBuilderX 打开并云打包
 └── scripts/
     └── generate_audio.py   # 从 core 的 words.ts 生成 edge-tts 音频到 apps/h5/public/audio
 ```
@@ -18,15 +19,20 @@
 npm install            # 根目录安装所有 workspace 依赖
 
 npm run dev            # 启动 H5 开发服务器（= npm run dev --workspace apps/h5）
-npm run build          # 构建 H5（vue-tsc + vite）
+npm run build          # 构建 H5（vue-tsc + vite），产物在 apps/h5/dist
 npm run preview        # 预览 H5 构建产物
 npm run gen:audio      # 重新生成单词/例句音频（需要 python + edge-tts）
-
-# uni-app 端
-npm run dev:h5 --workspace apps/uni        # uni-app H5 开发
-npm run build:h5 --workspace apps/uni      # uni-app H5 构建
-npm run build:mp-weixin --workspace apps/uni
 ```
+
+## App 打包（apps/uni）
+
+apps/uni 是 **HBuilderX 可视化项目**（不是 CLI 项目），只有一页 web-view 指向线上 H5：
+
+1. 用 HBuilderX 打开 `apps/uni` 目录
+2. 发行 → 原生 App-云打包 → Android → 得到 apk
+
+> 注意：不要给 apps/uni 装 node_modules / 走 npm 编译，HBuilderX 云打包会使用项目里的依赖副本，
+> 与 monorepo 的 vue 版本冲突会导致 "xxx is not exported" 报错。
 
 ## 首次克隆后的初始化
 
