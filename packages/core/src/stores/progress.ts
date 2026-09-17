@@ -22,11 +22,25 @@ export function levelProgress(stars: number): number {
 }
 
 interface ProgressState {
+  /** 数据版本号，将来结构变化时用于迁移 */
+  version: number
+  /** 设备唯一标识，首次启动生成；将来同步时用于区分设备 */
+  deviceId: string
+  /** 本地是否有未同步到服务器的改动 */
+  dirty: boolean
   stars: number
   learnedWords: string[]
   completedUnits: string[]
   /** 按 "YYYY-MM-DD" 记录每日已学单词数 */
   dailyWords: Record<string, number>
+}
+
+const STATE_VERSION = 1
+
+function genDeviceId(): string {
+  return typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `dev-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
 function todayKey(): string {
@@ -57,6 +71,9 @@ function getStorage(): StorageAdapter {
 
 function loadState(): ProgressState {
   const fallback: ProgressState = {
+    version: STATE_VERSION,
+    deviceId: genDeviceId(),
+    dirty: false,
     stars: 0,
     learnedWords: [],
     completedUnits: [],
@@ -68,6 +85,10 @@ function loadState(): ProgressState {
     if (!raw) return fallback
     const parsed = JSON.parse(raw) as Partial<ProgressState>
     return {
+      // 旧版本数据没有这些字段，自动补默认值（相当于一次静默迁移）
+      version: parsed.version ?? STATE_VERSION,
+      deviceId: parsed.deviceId ?? genDeviceId(),
+      dirty: parsed.dirty ?? false,
       stars: typeof parsed.stars === 'number' ? parsed.stars : 0,
       learnedWords: Array.isArray(parsed.learnedWords)
         ? parsed.learnedWords
@@ -79,6 +100,26 @@ function loadState(): ProgressState {
     }
   } catch {
     return fallback
+  }
+}
+
+/** 合并两份进度（本地 vs 服务器）：星星取大值，单词/单元取并集，每日取大值 */
+export function mergeProgress(
+  a: ProgressState,
+  b: ProgressState,
+): ProgressState {
+  const dailyWords: Record<string, number> = { ...a.dailyWords }
+  for (const [date, n] of Object.entries(b.dailyWords)) {
+    dailyWords[date] = Math.max(dailyWords[date] ?? 0, n)
+  }
+  return {
+    version: Math.max(a.version, b.version),
+    deviceId: a.deviceId, // 设备 id 始终以本机为准
+    dirty: a.dirty || b.dirty,
+    stars: Math.max(a.stars, b.stars),
+    learnedWords: [...new Set([...a.learnedWords, ...b.learnedWords])],
+    completedUnits: [...new Set([...a.completedUnits, ...b.completedUnits])],
+    dailyWords,
   }
 }
 
@@ -94,6 +135,21 @@ export const useProgressStore = defineStore('progress', {
   },
   actions: {
     persist() {
+      this.dirty = true
+      getStorage().set(STORAGE_KEY, JSON.stringify(this.$state))
+    },
+    /** 导出当前进度快照（将来上传服务器用）：POST 这个对象即可 */
+    exportProgress(): ProgressState {
+      return JSON.parse(JSON.stringify(this.$state)) as ProgressState
+    },
+    /** 用服务器返回的进度合并到本地（登录/同步成功后的回调里调用） */
+    importProgress(remote: Partial<ProgressState>) {
+      const merged = mergeProgress(this.$state, {
+        ...loadState(),
+        ...remote,
+      } as ProgressState)
+      this.$patch(merged)
+      this.dirty = false // 刚同步完，本地无未同步改动
       getStorage().set(STORAGE_KEY, JSON.stringify(this.$state))
     },
     addStars(n: number) {
