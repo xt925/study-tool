@@ -6,6 +6,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch: # 允许在 Actions 页面手动触发（用当前分支最新代码部署）
 
 jobs:
   build-deploy:
