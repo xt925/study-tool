@@ -18,3 +18,8 @@ unpackage/
 
 # 生成的音频（由 scripts/generate_audio.py 再生，不进仓库）
 apps/h5/public/audio/
+
+# 部署密钥（绝不能提交）
+deploy_key*
+*.pem
+*.key

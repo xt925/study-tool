@@ -1,0 +1,65 @@
+# 打 tag 自动构建 H5 并部署到服务器
+# 用法：git tag v0.1.0 && git push origin v0.1.0
+name: deploy-h5
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: npm install
+
+      # 音频不进 git，但内容是 words 数据决定的：词库没变就用缓存，不重新生成
+      - name: 缓存已生成的音频
+        uses: actions/cache@v4
+        with:
+          path: apps/h5/public/audio
+          key: audio-${{ hashFiles('packages/core/src/data/*.ts') }}
+          restore-keys: audio-
+
+      - name: 生成缺失的音频
+        run: |
+          pip install edge-tts
+          npm run gen:audio
+
+      - name: 构建 H5
+        run: npm run build
+
+      - name: 打包产物
+        run: cd apps/h5/dist && tar -czf "$RUNNER_TEMP/site.tgz" .
+
+      - name: 上传到服务器
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: ${{ runner.temp }}/site.tgz
+          target: /tmp/
+
+      - name: 解压到站点目录
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e
+            mkdir -p /var/www/html/english-study
+            tar -xzf /tmp/site.tgz -C /var/www/html/english-study
+            rm /tmp/site.tgz
