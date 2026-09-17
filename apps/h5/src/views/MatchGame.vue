@@ -55,8 +55,8 @@ function start(unit: Unit) {
     wrong: false,
     color: PALETTE[i % PALETTE.length],
   }))
-  // 中文列单独打乱，保证两列顺序不同
-  zhCards.value = shuffle(enCards.value)
+  // 中文列复制成独立卡片再打乱：两列顺序不同，且选中一侧时不会把另一侧的答案一起高亮
+  zhCards.value = shuffle(enCards.value.map((c) => ({ ...c })))
   picked.value = null
   matchedCount.value = 0
   lines.value = []

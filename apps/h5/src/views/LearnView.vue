@@ -34,6 +34,11 @@ let playbackUrl = ''
 
 async function startRecord() {
   if (isRecording.value) return
+  // getUserMedia 只在 HTTPS 或 localhost 下可用（手机浏览器常见坑）
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+    alert('当前环境不支持录音 😢\n请确认通过 https:// 开头访问（http 下浏览器会禁用麦克风）')
+    return
+  }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     chunks = []
@@ -49,8 +54,17 @@ async function startRecord() {
     }
     recorder.start()
     isRecording.value = true
-  } catch {
-    alert('无法使用麦克风，请检查浏览器权限 🔇')
+  } catch (e) {
+    const name = (e as DOMException).name
+    if (name === 'NotAllowedError' || name === 'SecurityError') {
+      alert(
+        '麦克风权限被拒绝了 🔇\n请到浏览器设置 → 网站设置 → 找到本站 → 允许麦克风，然后刷新页面',
+      )
+    } else if (name === 'NotFoundError') {
+      alert('没有检测到可用的麦克风 😢')
+    } else {
+      alert(`录音失败：${(e as Error).message || '未知错误'}`)
+    }
   }
 }
 
