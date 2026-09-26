@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import AppButton from '@/components/AppButton.vue'
 import ProgressDots from '@/components/ProgressDots.vue'
 import { levelProgress, useProgressStore } from '@/stores/progress'
+import { getAuth, syncNow, syncState } from '@/utils/api'
 
 const router = useRouter()
 const progress = useProgressStore()
@@ -12,11 +13,39 @@ const progress = useProgressStore()
 const percent = computed(() =>
   Math.min(100, Math.round(levelProgress(progress.stars) * 100)),
 )
+
+const isAdmin = computed(() => getAuth()?.role === 'admin')
+const syncLabel = computed(() => {
+  if (!getAuth()) return '👤 登录'
+  if (syncState.value === 'syncing') return '同步中…'
+  return progress.dirty ? '待同步' : '✓ 已同步'
+})
+
+function onSyncClick() {
+  if (!getAuth()) router.push('/login')
+  else void syncNow()
+}
 </script>
 
 <template>
   <div class="flex min-h-screen flex-col px-5 pb-10">
-    <header class="pt-8 text-center">
+    <div class="flex justify-end gap-2 pt-4">
+      <button
+        v-if="isAdmin"
+        class="rounded-full bg-white px-3 py-1.5 text-sm text-slate-500 shadow-sm active:scale-95"
+        aria-label="家长中心"
+        @click="router.push('/admin')"
+      >
+        📊
+      </button>
+      <button
+        class="rounded-full bg-white px-3 py-1.5 text-sm text-slate-500 shadow-sm active:scale-95"
+        @click="onSyncClick"
+      >
+        {{ syncLabel }}
+      </button>
+    </div>
+    <header class="pt-4 text-center">
       <h1 class="text-3xl font-extrabold text-slate-800">🐶 English Adventure</h1>
       <p class="mt-1 text-slate-400">每天学一点，英语大冒险！</p>
     </header>

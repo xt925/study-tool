@@ -9,7 +9,39 @@ on:
   workflow_dispatch: # 允许在 Actions 页面手动触发（用当前分支最新代码部署）
 
 jobs:
+  # 检测本次发布是否涉及服务端相关文件（对比上一个 tag）
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      server: ${{ steps.filter.outputs.server }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # 手动触发时始终部署服务端，图个省心
+            echo "server=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          PREV=$(git tag --sort=-creatordate | grep -v "^${GITHUB_REF_NAME}$" | head -1 || true)
+          if [ -z "$PREV" ]; then
+            CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD)
+          else
+            CHANGED=$(git diff --name-only "$PREV" HEAD)
+          fi
+          echo "本次变更文件："
+          echo "$CHANGED"
+          if echo "$CHANGED" | grep -qE '^(apps/server|packages/core)/|^package-lock\.json$'; then
+            echo "server=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "server=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build-deploy:
+    needs: changes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -64,3 +96,47 @@ jobs:
             mkdir -p /var/www/html/english-study
             tar -xzf /tmp/site.tgz -C /var/www/html/english-study
             rm /tmp/site.tgz
+
+  # 服务端部署：打包 apps/server + packages/core（@study/core 是 TS 源码包，线上用 tsx 运行）
+  # 只在服务端相关文件变更时执行（手动触发时总是执行）
+  deploy-server:
+    needs: [changes, build-deploy]
+    if: needs.changes.outputs.server == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 打包服务端（保留 monorepo 结构，服务器上按 workspaces 安装）
+        run: |
+          DEPLOY="$RUNNER_TEMP/server-deploy"
+          mkdir -p "$DEPLOY/apps" "$DEPLOY/packages"
+          cp -r apps/server "$DEPLOY/apps/server"
+          cp -r packages/core "$DEPLOY/packages/core"
+          rm -rf "$DEPLOY/apps/server/node_modules" "$DEPLOY/apps/server/data"
+          echo '{"name":"english-study-server","private":true,"workspaces":["apps/server","packages/core"]}' > "$DEPLOY/package.json"
+          cd "$DEPLOY" && tar -czf "$RUNNER_TEMP/server.tgz" .
+
+      - name: 上传到服务器
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: ${{ runner.temp }}/server.tgz
+          target: /tmp/
+
+      - name: 安装依赖并用 pm2 重启
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e
+            mkdir -p /var/www/english-study-server
+            tar -xzf /tmp/server.tgz -C /var/www/english-study-server
+            rm /tmp/server.tgz
+            cd /var/www/english-study-server
+            npm install --omit=dev
+            pm2 restart english-study-server || pm2 start npm --name english-study-server -- run start --workspace apps/server
+            pm2 save

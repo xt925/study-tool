@@ -10,6 +10,8 @@
     "dev": "npm run dev --workspace apps/h5",
     "build": "npm run build --workspace apps/h5",
     "preview": "npm run preview --workspace apps/h5",
+    "dev:server": "npm run dev --workspace apps/server",
+    "build:server": "npm run build --workspace apps/server",
     "gen:audio": "python scripts/generate_audio.py"
   }
 }
