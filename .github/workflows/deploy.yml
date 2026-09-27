@@ -73,8 +73,12 @@ jobs:
       - name: 构建 H5
         run: npm run build
 
+      # 压缩包放仓库根目录：scp-action 会保留源路径的目录层级，
+      # 用绝对路径会导致远端解到 /tmp/home/runner/... 下而找不到文件
       - name: 打包产物
-        run: cd apps/h5/dist && tar -czf "$RUNNER_TEMP/site.tgz" .
+        run: |
+          tar -czf site.tgz -C apps/h5/dist .
+          ls -lh site.tgz
 
       - name: 上传到服务器
         uses: appleboy/scp-action@v0.1.7
@@ -82,7 +86,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          source: ${{ runner.temp }}/site.tgz
+          source: site.tgz
           target: /tmp/
 
       - name: 解压到站点目录
@@ -114,7 +118,8 @@ jobs:
           cp -r packages/core "$DEPLOY/packages/core"
           rm -rf "$DEPLOY/apps/server/node_modules" "$DEPLOY/apps/server/data"
           echo '{"name":"english-study-server","private":true,"workspaces":["apps/server","packages/core"]}' > "$DEPLOY/package.json"
-          cd "$DEPLOY" && tar -czf "$RUNNER_TEMP/server.tgz" .
+          tar -czf server.tgz -C "$DEPLOY" .
+          ls -lh server.tgz
 
       - name: 上传到服务器
         uses: appleboy/scp-action@v0.1.7
@@ -122,7 +127,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          source: ${{ runner.temp }}/server.tgz
+          source: server.tgz
           target: /tmp/
 
       - name: 安装依赖并用 pm2 重启
