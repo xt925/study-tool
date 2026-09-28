@@ -1,9 +1,27 @@
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
 import { levelFromStars, mergeProgress } from '@study/core'
 import Fastify from 'fastify'
 
 import { genSalt, genToken, hashPassword, verifyPassword } from './auth.js'
 import { db, now } from './db.js'
 import type { ProgressRow, TokenRow, UserRow } from './db.js'
+import { readSoeCredentials, signSoeUrl, type SoeEvalMode } from './soe.js'
+
+// 本地开发：存在 .env 就加载（Node 内置，无需 dotenv）；线上走环境变量。
+// 依次尝试 monorepo 根目录和 apps/server 下的 .env，兼容不同 pm2 工作目录
+for (const envPath of [
+  join(process.cwd(), '.env'),
+  join(dirname(fileURLToPath(import.meta.url)), '..', '.env'),
+]) {
+  try {
+    process.loadEnvFile(envPath)
+    break
+  } catch {
+    // 该路径没有 .env，试下一个
+  }
+}
 
 type ProgressState = Parameters<typeof mergeProgress>[0]
 
@@ -174,6 +192,25 @@ app.get('/api/admin/summary', { preHandler: requireAuth }, (req, reply) => {
       }
     }),
   }
+})
+
+/**
+ * 口语评测：返回一个「已签名的腾讯云 WSS 地址」，前端拿它直连腾讯推流音频。
+ * 密钥不出服务端，地址 5 分钟内有效；评测次数消耗在腾讯侧。
+ */
+app.post('/api/speech/token', { preHandler: requireAuth }, (req, reply) => {
+  const cred = readSoeCredentials()
+  if (!cred) {
+    return reply
+      .code(503)
+      .send({ error: '服务端未配置口语评测密钥（SOE_APP_ID / SOE_SECRET_ID / SOE_SECRET_KEY）' })
+  }
+  const { text, mode } = (req.body ?? {}) as { text?: string; mode?: string }
+  if (typeof text !== 'string' || text.trim() === '') {
+    return reply.code(400).send({ error: 'text required' })
+  }
+  const evalMode: SoeEvalMode = mode === 'sentence' ? 'sentence' : 'word'
+  return signSoeUrl(cred, { text: text.trim(), mode: evalMode })
 })
 
 app.listen({ port: PORT, host: HOST }).catch((err) => {

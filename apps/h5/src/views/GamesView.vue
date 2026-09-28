@@ -24,6 +24,12 @@ const games = [
     name: '打怪游戏',
     desc: '答对题目攻击怪物，3 次打中即 KO',
   },
+  {
+    to: '/games/speech',
+    emoji: '🎤',
+    name: '跟读打分',
+    desc: '跟着标准发音朗读，给出发音评分',
+  },
 ]
 </script>
 

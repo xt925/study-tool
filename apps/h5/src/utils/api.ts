@@ -60,7 +60,11 @@ async function request<T>(
     if (options.auth) setAuth(null)
     throw new Error('登录已过期')
   }
-  if (!res.ok) throw new Error(`请求失败：${res.status}`)
+  if (!res.ok) {
+    // 服务端会带 { error } 说明原因（如未配置密钥），优先展示它
+    const data = (await res.json().catch(() => null)) as { error?: string } | null
+    throw new Error(data?.error ?? `请求失败：${res.status}`)
+  }
   return (await res.json()) as T
 }
 
@@ -119,6 +123,23 @@ export async function getAdminSummary(): Promise<AdminSummaryItem[]> {
     auth: true,
   })
   return res.users
+}
+
+export interface SpeechToken {
+  url: string
+  voiceId: string
+}
+
+/** 取腾讯口语评测的已签名连接地址（密钥留在服务端） */
+export async function getSpeechToken(
+  text: string,
+  mode: 'word' | 'sentence',
+): Promise<SpeechToken> {
+  return request<SpeechToken>('/speech/token', {
+    method: 'POST',
+    body: { text, mode },
+    auth: true,
+  })
 }
 
 /** 同步状态：给首页小按钮展示用 */
