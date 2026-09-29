@@ -5,7 +5,6 @@ import { useRouter } from 'vue-router'
 import AppButton from '@/components/AppButton.vue'
 import ProgressDots from '@/components/ProgressDots.vue'
 import { levelProgress, useProgressStore } from '@/stores/progress'
-import { getAuth, syncNow, syncState } from '@/utils/api'
 
 const router = useRouter()
 const progress = useProgressStore()
@@ -13,36 +12,18 @@ const progress = useProgressStore()
 const percent = computed(() =>
   Math.min(100, Math.round(levelProgress(progress.stars) * 100)),
 )
-
-const isAdmin = computed(() => getAuth()?.role === 'admin')
-const syncLabel = computed(() => {
-  if (!getAuth()) return '👤 登录'
-  if (syncState.value === 'syncing') return '同步中…'
-  return progress.dirty ? '待同步' : '✓ 已同步'
-})
-
-function onSyncClick() {
-  if (!getAuth()) router.push('/login')
-  else void syncNow()
-}
 </script>
 
 <template>
   <div class="flex min-h-screen flex-col px-5 pb-10">
-    <div class="flex justify-end gap-2 pt-4">
+    <div class="flex justify-end pt-4">
+      <!-- 默认头像，点进个人信息页（家长中心 / 同步 / 退出登录 都在里面） -->
       <button
-        v-if="isAdmin"
-        class="rounded-full bg-white px-3 py-1.5 text-sm text-slate-500 shadow-sm active:scale-95"
-        aria-label="家长中心"
-        @click="router.push('/admin')"
+        class="flex h-11 w-11 items-center justify-center rounded-full bg-white text-xl shadow-sm transition active:scale-95"
+        aria-label="个人信息"
+        @click="router.push('/profile')"
       >
-        📊
-      </button>
-      <button
-        class="rounded-full bg-white px-3 py-1.5 text-sm text-slate-500 shadow-sm active:scale-95"
-        @click="onSyncClick"
-      >
-        {{ syncLabel }}
+        👤
       </button>
     </div>
     <header class="pt-4 text-center">

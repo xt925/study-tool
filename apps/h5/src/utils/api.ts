@@ -91,15 +91,11 @@ export async function changePassword(
   oldPassword: string,
   newPassword: string,
 ): Promise<void> {
+  // 旧密码错误时服务端返回 400 + { error }，request 会把它抛出来，这里不用再改写
   await request('/change-password', {
     method: 'POST',
     body: { oldPassword, newPassword },
     auth: true,
-  }).catch((err: unknown) => {
-    // request 对 401 统一抛「登录已过期」，改密码场景下 401 意味着旧密码错误
-    if (err instanceof Error && err.message === '登录已过期')
-      throw new Error('旧密码不正确')
-    throw err
   })
 }
 

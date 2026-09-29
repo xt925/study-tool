@@ -121,7 +121,9 @@ app.post('/api/change-password', { preHandler: requireAuth }, (req, reply) => {
     .prepare<[number], UserRow>('SELECT * FROM users WHERE id = ?')
     .get(req.user!.id)
   if (!user || !verifyPassword(oldPassword, user.salt, user.pass_hash)) {
-    return reply.code(401).send({ error: '旧密码不正确' })
+    // 用 400 而不是 401：此时登录态是有效的，错的只是提交的旧密码。
+    // 前端把「带鉴权请求收到 401」统一当作 token 失效并清除登录态，用 401 会把人踢下线
+    return reply.code(400).send({ error: '旧密码不正确' })
   }
   const salt = genSalt()
   db.prepare('UPDATE users SET salt = ?, pass_hash = ? WHERE id = ?').run(

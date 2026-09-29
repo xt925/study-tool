@@ -16,6 +16,11 @@ import {
   stopRecording,
   type SpeechScore,
 } from '@/utils/speech'
+import {
+  DAILY_LIMIT_PER_WORD,
+  consumeAttempt,
+  remainingAttempts,
+} from '@/utils/speechQuota'
 
 const router = useRouter()
 const progress = useProgressStore()
@@ -33,6 +38,8 @@ const score = ref<SpeechScore | null>(null)
 const error = ref('')
 const bestScore = ref(0)
 const showReward = ref(false)
+/** 当前这个词今天还能读几次 */
+const remaining = ref(DAILY_LIMIT_PER_WORD)
 
 const current = computed(() => words.value[index.value])
 
@@ -66,6 +73,9 @@ function resetTurn() {
   phase.value = 'idle'
   score.value = null
   error.value = ''
+  remaining.value = current.value
+    ? remainingAttempts(current.value.id)
+    : DAILY_LIMIT_PER_WORD
 }
 
 function playWord() {
@@ -76,8 +86,18 @@ async function toggleRecord() {
   if (phase.value === 'recording') {
     phase.value = 'scoring'
     try {
+      const word = current.value
+      if (!word) return
+      // stopRecording 内部会先做静音检测，没录到人声直接抛错，不消耗次数
       const pcm = await stopRecording()
-      const result = await evaluateSpeech(current.value!.word, pcm, 'word')
+      if (remaining.value <= 0) {
+        error.value = `「${word.word}」今天已经读满 ${DAILY_LIMIT_PER_WORD} 次啦，先好好练练，明天再来 💪`
+        phase.value = 'idle'
+        return
+      }
+      consumeAttempt(word.id)
+      remaining.value = remainingAttempts(word.id)
+      const result = await evaluateSpeech(word.word, pcm, 'word')
       score.value = result
       phase.value = 'done'
       bestScore.value = Math.max(bestScore.value, result.total)
@@ -167,8 +187,14 @@ onUnmounted(cancelRecording)
       <div class="mt-6 px-5 text-center">
         <button
           class="h-24 w-24 rounded-full text-4xl text-white shadow-lg transition active:scale-90 disabled:opacity-50"
-          :class="phase === 'recording' ? 'bg-rose-500' : 'bg-sky-500'"
-          :disabled="phase === 'scoring'"
+          :class="
+            phase === 'recording'
+              ? 'bg-rose-500'
+              : remaining > 0
+                ? 'bg-sky-500'
+                : 'bg-slate-300'
+          "
+          :disabled="phase === 'scoring' || (remaining === 0 && phase !== 'recording')"
           :aria-label="phase === 'recording' ? '结束录音' : '开始录音'"
           @click="toggleRecord"
         >
@@ -180,7 +206,25 @@ onUnmounted(cancelRecording)
               ? '读完点一下结束'
               : phase === 'scoring'
                 ? '评分中…'
-                : '点一下开始录音'
+                : remaining > 0
+                  ? '点一下开始录音'
+                  : '今天这个词先练到这儿'
+          }}
+        </p>
+        <p
+          class="mt-1 text-xs"
+          :class="
+            remaining > 5
+              ? 'text-slate-400'
+              : remaining > 0
+                ? 'text-amber-500'
+                : 'text-rose-500'
+          "
+        >
+          {{
+            remaining > 0
+              ? `今日还可读 ${remaining} 次`
+              : `今天已经读满 ${DAILY_LIMIT_PER_WORD} 次啦，先好好练练，明天再来 💪`
           }}
         </p>
       </div>

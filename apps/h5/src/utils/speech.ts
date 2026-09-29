@@ -65,7 +65,12 @@ export async function stopRecording(): Promise<ArrayBuffer> {
     current.stop()
   })
   releaseMic()
-  return toPcm16k(blob)
+  const pcm = await toPcm16k(blob)
+  // 前端先挡掉没录到人声的情况，避免白发一次评测（会扣次数）
+  if (pcmRms(pcm) < SILENCE_RMS) {
+    throw new Error('没有听到声音，靠近麦克风大声读一遍')
+  }
+  return pcm
 }
 
 /** 录音中途放弃（如离开页面） */
@@ -114,6 +119,25 @@ function floatToPcm16(samples: Float32Array): ArrayBuffer {
     out[i] = s < 0 ? s * 0x8000 : s * 0x7fff
   }
   return out.buffer
+}
+
+/**
+ * 判定为静音的归一化 RMS 阈值（0~1）。
+ * 取 0.005（约 -46 dBFS），只挡真正的无声/麦克风没录到东西，
+ * 正常朗读一般在 0.02 以上。太严会误伤小声说话，调大需谨慎。
+ */
+const SILENCE_RMS = 0.005
+
+/** 16bit 单声道 PCM 的归一化 RMS（0~1） */
+export function pcmRms(pcm: ArrayBuffer): number {
+  const samples = new Int16Array(pcm)
+  if (samples.length === 0) return 0
+  let sum = 0
+  for (let i = 0; i < samples.length; i += 1) {
+    const v = samples[i] / 0x8000
+    sum += v * v
+  }
+  return Math.sqrt(sum / samples.length)
 }
 
 interface SoeMessage {
