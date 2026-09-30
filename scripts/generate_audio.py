@@ -53,17 +53,20 @@ def parse_words() -> list[dict]:
     return words
 
 
-def tts(text: str, out: Path) -> bool:
+def tts(text: str, out: Path) -> str:
+    """生成一条音频。返回 'skip'（已存在）/ 'ok'（新生成）/ 'fail'。"""
     if out.exists():
-        return True
+        return 'skip'
     r = subprocess.run(
         ['edge-tts', '--voice', VOICE, '--text', text, '--write-media', str(out)],
         capture_output=True, text=True,
     )
+    # 只在真的发了请求之后限速；命中的缓存不该陪着一起等
+    time.sleep(0.3)
     if r.returncode != 0:
         print(f'  失败: {text}\n{r.stderr.strip()}', file=sys.stderr)
-        return False
-    return True
+        return 'fail'
+    return 'ok'
 
 
 def main() -> None:
@@ -79,24 +82,39 @@ def main() -> None:
 
     manifest: dict[str, str] = {}
     fail = 0
+    skipped = 0
+    generated = 0
     for i, w in enumerate(words, 1):
-        print(f'[{i}/{len(words)}] {w["word"]}')
-        ok = tts(w['word'], OUT_DIR / 'words' / f'{w["id"]}.mp3')
-        if ok:
-            manifest[w['word']] = f'audio/words/{w["id"]}.mp3'
-        if w['example']:
-            ok2 = tts(w['example'], OUT_DIR / 'examples' / f'{w["id"]}.mp3')
-            if ok2:
-                manifest[w['example']] = f'audio/examples/{w["id"]}.mp3'
-            ok = ok and ok2
-        if not ok:
+        word_status = tts(w['word'], OUT_DIR / 'words' / f'{w["id"]}.mp3')
+        if word_status == 'ok':
+            generated += 1
+            print(f'[{i}/{len(words)}] 新生成 {w["word"]}')
+        elif word_status == 'skip':
+            skipped += 1
+        else:
             fail += 1
-        time.sleep(0.3)  # 避免请求过快被限流
+        if word_status != 'fail':
+            manifest[w['word']] = f'audio/words/{w["id"]}.mp3'
+
+        if w['example']:
+            example_status = tts(w['example'], OUT_DIR / 'examples' / f'{w["id"]}.mp3')
+            if example_status == 'ok':
+                generated += 1
+                print(f'[{i}/{len(words)}] 新生成例句 {w["example"]}')
+            elif example_status == 'skip':
+                skipped += 1
+            else:
+                fail += 1
+            if example_status != 'fail':
+                manifest[w['example']] = f'audio/examples/{w["id"]}.mp3'
 
     (OUT_DIR / 'manifest.json').write_text(
         json.dumps(manifest, ensure_ascii=False, indent=1), encoding='utf-8'
     )
-    print(f'完成：{len(manifest)} 条音频映射，失败 {fail} 个')
+    print(
+        f'完成：{len(manifest)} 条音频映射，'
+        f'新生成 {generated} 个，跳过 {skipped} 个，失败 {fail} 个'
+    )
 
 
 if __name__ == '__main__':
