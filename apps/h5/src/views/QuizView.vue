@@ -186,7 +186,7 @@ onBeforeUnmount(stopSpeak)
             :key="index"
             :word="current.word.word"
             :letters="current.options"
-            :blank-count="current.blankIndexes?.length ?? 0"
+            :blank-indexes="current.blankIndexes ?? []"
             :locked="answered"
             @done="(w: string) => choose(w)"
           />

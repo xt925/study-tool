@@ -1,4 +1,4 @@
-import { getSpeechToken } from '@/utils/api'
+import { getSpeechToken, type SpeechAttempt } from '@/utils/api'
 
 /**
  * 跟读评测：浏览器录音 → 转成 16k/16bit/单声道 PCM → 直连腾讯云 SOE 推流 → 返回分数。
@@ -7,6 +7,7 @@ import { getSpeechToken } from '@/utils/api'
 
 /** 腾讯 SOE 要求的采样率 */
 const TARGET_RATE = 16000
+const MAX_RECORDING_SECONDS = 10
 
 export interface PhonemeScore {
   /** 参考音素（标准发音），可能为空 */
@@ -34,6 +35,17 @@ export interface SpeechScore {
   /** 完整度 0-100 */
   completion: number
   words: WordScore[]
+}
+
+export interface PreparedSpeech {
+  pcm: ArrayBuffer
+  audioHash: string
+}
+
+export function createSpeechAttemptId(): string {
+  return typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `attempt-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
 let recorder: MediaRecorder | null = null
@@ -66,10 +78,7 @@ export async function stopRecording(): Promise<ArrayBuffer> {
   })
   releaseMic()
   const pcm = await toPcm16k(blob)
-  // 前端先挡掉没录到人声的情况，避免白发一次评测（会扣次数）
-  if (pcmRms(pcm) < SILENCE_RMS) {
-    throw new Error('没有听到声音，靠近麦克风大声读一遍')
-  }
+  inspectSpeech(pcm)
   return pcm
 }
 
@@ -127,6 +136,7 @@ function floatToPcm16(samples: Float32Array): ArrayBuffer {
  * 正常朗读一般在 0.02 以上。太严会误伤小声说话，调大需谨慎。
  */
 const SILENCE_RMS = 0.005
+const VOICED_FRAME_RMS = 0.008
 
 /** 16bit 单声道 PCM 的归一化 RMS（0~1） */
 export function pcmRms(pcm: ArrayBuffer): number {
@@ -140,6 +150,48 @@ export function pcmRms(pcm: ArrayBuffer): number {
   return Math.sqrt(sum / samples.length)
 }
 
+function inspectSpeech(pcm: ArrayBuffer): void {
+  const samples = new Int16Array(pcm)
+  const duration = samples.length / TARGET_RATE
+  if (duration < 0.25) throw new Error('录音太短了，请读完整个单词再结束')
+  if (duration > MAX_RECORDING_SECONDS) {
+    throw new Error(`录音超过 ${MAX_RECORDING_SECONDS} 秒，请重新录制`)
+  }
+  if (pcmRms(pcm) < SILENCE_RMS) {
+    throw new Error('几乎没有检测到声音，请靠近麦克风清楚地读一遍')
+  }
+
+  const frameSize = Math.round(TARGET_RATE * 0.02)
+  let voicedFrames = 0
+  let totalFrames = 0
+  for (let start = 0; start < samples.length; start += frameSize) {
+    const end = Math.min(start + frameSize, samples.length)
+    let sum = 0
+    for (let i = start; i < end; i += 1) {
+      const sample = samples[i] / 0x8000
+      sum += sample * sample
+    }
+    const frameRms = Math.sqrt(sum / (end - start))
+    if (frameRms >= VOICED_FRAME_RMS) voicedFrames += 1
+    totalFrames += 1
+  }
+  if (voicedFrames < 5 || voicedFrames / totalFrames < 0.025) {
+    throw new Error('有效声音太少，请对着麦克风完整、清楚地读一遍')
+  }
+}
+
+async function fingerprint(pcm: ArrayBuffer): Promise<string> {
+  if (!crypto.subtle) throw new Error('当前环境不支持音频安全校验，请更新应用后重试')
+  const digest = await crypto.subtle.digest('SHA-256', pcm)
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+export async function prepareRecording(recording: Blob): Promise<PreparedSpeech> {
+  const pcm = await toPcm16k(recording)
+  inspectSpeech(pcm)
+  return { pcm, audioHash: await fingerprint(pcm) }
+}
+
 interface SoeMessage {
   code: number
   message?: string
@@ -148,13 +200,14 @@ interface SoeMessage {
 }
 
 /** 推流评测：一句话/一个词只发一段音频（服务端参数已设 rec_mode=1） */
-export function evaluateSpeech(
+export function evaluatePreparedSpeech(
   text: string,
-  pcm: ArrayBuffer,
-  mode: 'word' | 'sentence' = 'word',
+  prepared: PreparedSpeech,
+  mode: 'word' | 'sentence',
+  attempt: Omit<SpeechAttempt, 'audioHash'>,
 ): Promise<SpeechScore> {
   return new Promise<SpeechScore>((resolve, reject) => {
-    void getSpeechToken(text, mode).then(
+    void getSpeechToken(text, mode, { ...attempt, audioHash: prepared.audioHash }).then(
       ({ url }) => {
         const ws = new WebSocket(url)
         ws.binaryType = 'arraybuffer'
@@ -178,7 +231,7 @@ export function evaluateSpeech(
         }
 
         ws.onopen = () => {
-          ws.send(pcm)
+          ws.send(prepared.pcm)
           ws.send(JSON.stringify({ type: 'end' }))
         }
         ws.onmessage = (ev) => {

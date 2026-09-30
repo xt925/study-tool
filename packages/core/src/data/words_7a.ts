@@ -4,7 +4,7 @@ const words_7a = {
     emoji: '🌱',
     units: [
         {
-            id: 'grade7a-unit1',
+            id: 'grade7a-unit0',
             title: 'Unit 0',
             words: [
                 {
@@ -135,7 +135,8 @@ const words_7a = {
                 },
                 {
                     id: 'g7a-u0-w22',
-                    word: 'everyone \\\'evriwan',
+                    word: 'everyone',
+                    phonetic: '/evriwan/',
                     senses: [{ pos: 'pron.', meaning: '每个人,人人' }],
                 },
                 {

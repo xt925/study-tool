@@ -12,6 +12,16 @@ export interface Auth {
   username: string
 }
 
+export class ApiError extends Error {
+  readonly status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
 export interface AdminSummaryItem {
   username: string
   stars: number
@@ -58,12 +68,12 @@ async function request<T>(
   if (res.status === 401) {
     // token 失效，清掉登录态
     if (options.auth) setAuth(null)
-    throw new Error('登录已过期')
+    throw new ApiError('登录已过期', res.status)
   }
   if (!res.ok) {
     // 服务端会带 { error } 说明原因（如未配置密钥），优先展示它
     const data = (await res.json().catch(() => null)) as { error?: string } | null
-    throw new Error(data?.error ?? `请求失败：${res.status}`)
+    throw new ApiError(data?.error ?? `请求失败：${res.status}`, res.status)
   }
   return (await res.json()) as T
 }
@@ -124,16 +134,40 @@ export async function getAdminSummary(): Promise<AdminSummaryItem[]> {
 export interface SpeechToken {
   url: string
   voiceId: string
+  quota: SpeechQuota
+}
+
+export interface SpeechQuota {
+  date: string
+  accountLimit: number
+  accountUsed: number
+  accountRemaining: number
+  wordLimit: number
+  wordUsed: number
+  wordRemaining: number
+}
+
+export interface SpeechAttempt {
+  wordId: string
+  attemptId: string
+  audioHash: string
 }
 
 /** 取腾讯口语评测的已签名连接地址（密钥留在服务端） */
 export async function getSpeechToken(
   text: string,
   mode: 'word' | 'sentence',
+  attempt: SpeechAttempt,
 ): Promise<SpeechToken> {
   return request<SpeechToken>('/speech/token', {
     method: 'POST',
-    body: { text, mode },
+    body: { text, mode, ...attempt },
+    auth: true,
+  })
+}
+
+export function getSpeechQuota(wordId: string): Promise<SpeechQuota> {
+  return request<SpeechQuota>(`/speech/quota?wordId=${encodeURIComponent(wordId)}`, {
     auth: true,
   })
 }

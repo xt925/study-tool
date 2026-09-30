@@ -4,14 +4,24 @@ import { ref } from 'vue'
 const props = defineProps<{
   word: string
   letters: string[]
-  blankCount: number
+  /** 被挖掉的位置（下标升序），filled 与它一一对应 */
+  blankIndexes: number[]
   locked: boolean
 }>()
 
 const emit = defineEmits<{ done: [filledWord: string] }>()
 
-const filled = ref<(string | null)[]>(Array(props.blankCount).fill(null))
+const filled = ref<(string | null)[]>(Array(props.blankIndexes.length).fill(null))
 const used = ref<boolean[]>(Array(props.letters.length).fill(false))
+
+/** 把填好的字母放回挖空位置，还原成完整单词（判分方比较的是整词） */
+function assemble(): string {
+  const chars = props.word.split('')
+  props.blankIndexes.forEach((pos, slot) => {
+    chars[pos] = filled.value[slot] as string
+  })
+  return chars.join('')
+}
 
 function tapLetter(i: number) {
   if (props.locked || used.value[i]) return
@@ -20,7 +30,7 @@ function tapLetter(i: number) {
   filled.value[slot] = props.letters[i]
   used.value[i] = true
   if (!filled.value.includes(null)) {
-    emit('done', filled.value.join(''))
+    emit('done', assemble())
   }
 }
 
@@ -37,7 +47,7 @@ function tapSlot(slot: number) {
 }
 
 defineExpose({ reset: () => {
-  filled.value = Array(props.blankCount).fill(null)
+  filled.value = Array(props.blankIndexes.length).fill(null)
   used.value = Array(props.letters.length).fill(false)
 } })
 </script>

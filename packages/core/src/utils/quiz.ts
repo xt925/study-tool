@@ -56,6 +56,24 @@ function maskWord(word: string): { masked: string; blankIndexes: number[] } {
   return { masked, blankIndexes }
 }
 
+/** 拼写题字母库的目标长度（要填的字母 + 干扰字母） */
+const SPELL_BANK_SIZE = 8
+const LETTERS = 'abcdefghijklmnopqrstuvwxyz'.split('')
+
+/**
+ * 生成拼写题的字母库：要填的字母 + 从 a-z 里随机取的干扰字母。
+ *
+ * 不直接用单词自身的字母——那样短词只有两三个字母可选，靠排除法就能猜对。
+ * 空格越少干扰字母越多（保证至少 3 个），干扰字母不与要填的字母重复，
+ * 这样每个多出来的字母都是明确的错项。
+ */
+function buildLetterBank(word: string, blankIndexes: number[]): string[] {
+  const needed = blankIndexes.map((i) => word[i])
+  const extra = Math.max(3, SPELL_BANK_SIZE - needed.length)
+  const distractors = shuffle(LETTERS.filter((ch) => !needed.includes(ch))).slice(0, extra)
+  return shuffle([...needed, ...distractors])
+}
+
 /** 基于一个 unit 生成 count 道混合题（4 种题型轮换打乱） */
 export function generateQuiz(unit: Unit, count = 8): Question[] {
   const all = getAllWords()
@@ -87,7 +105,7 @@ export function generateQuiz(unit: Unit, count = 8): Question[] {
     return {
       type: 'spell',
       word,
-      options: shuffle(word.word.split('')),
+      options: buildLetterBank(word.word, blankIndexes),
       masked,
       blankIndexes,
     }

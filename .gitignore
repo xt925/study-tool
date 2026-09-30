@@ -23,3 +23,8 @@ apps/h5/public/audio/
 deploy_key*
 *.pem
 *.key
+
+# 环境变量（含腾讯云等密钥，绝不能提交）；要留模板就放 .env.example
+.env
+.env.*
+!.env.example

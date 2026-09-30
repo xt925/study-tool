@@ -5,6 +5,7 @@ import { levelFromStars, mergeProgress } from '@study/core'
 import Fastify from 'fastify'
 
 import { genSalt, genToken, hashPassword, verifyPassword } from './auth.js'
+import { SPEECH_QUOTA, quotaDay } from './config.js'
 import { db, now } from './db.js'
 import type { ProgressRow, TokenRow, UserRow } from './db.js'
 import { readSoeCredentials, signSoeUrl, type SoeEvalMode } from './soe.js'
@@ -27,7 +28,6 @@ type ProgressState = Parameters<typeof mergeProgress>[0]
 
 const PORT = Number(process.env.PORT ?? 3000)
 const HOST = process.env.HOST ?? '127.0.0.1'
-
 const app = Fastify({ logger: true })
 
 /** 兜底 normalize，避免脏数据导致 mergeProgress 崩溃 */
@@ -40,6 +40,7 @@ function normalizeProgress(raw: unknown): ProgressState {
     stars: typeof p.stars === 'number' ? p.stars : 0,
     learnedWords: Array.isArray(p.learnedWords) ? p.learnedWords : [],
     completedUnits: Array.isArray(p.completedUnits) ? p.completedUnits : [],
+    speechScores: Array.isArray(p.speechScores) ? p.speechScores : [],
     dailyWords: p.dailyWords ?? {},
   }
 }
@@ -196,6 +197,36 @@ app.get('/api/admin/summary', { preHandler: requireAuth }, (req, reply) => {
   }
 })
 
+function getSpeechUsage(userId: number, wordId: string, date: string) {
+  const accountUsed = db
+    .prepare<[number, string], { count: number }>(
+      'SELECT COUNT(*) AS count FROM speech_attempts WHERE user_id = ? AND quota_day = ?',
+    )
+    .get(userId, date)?.count ?? 0
+  const wordUsed = db
+    .prepare<[number, string, string], { count: number }>(
+      'SELECT COUNT(*) AS count FROM speech_attempts WHERE user_id = ? AND quota_day = ? AND word_id = ?',
+    )
+    .get(userId, date, wordId)?.count ?? 0
+  return {
+    date,
+    accountLimit: SPEECH_QUOTA.perAccountPerDay,
+    accountUsed,
+    accountRemaining: Math.max(0, SPEECH_QUOTA.perAccountPerDay - accountUsed),
+    wordLimit: SPEECH_QUOTA.perWordPerDay,
+    wordUsed,
+    wordRemaining: Math.max(0, SPEECH_QUOTA.perWordPerDay - wordUsed),
+  }
+}
+
+app.get('/api/speech/quota', { preHandler: requireAuth }, (req, reply) => {
+  const { wordId } = req.query as { wordId?: string }
+  if (!wordId || wordId.length > 128) {
+    return reply.code(400).send({ error: 'wordId required' })
+  }
+  return getSpeechUsage(req.user!.id, wordId, quotaDay())
+})
+
 /**
  * 口语评测：返回一个「已签名的腾讯云 WSS 地址」，前端拿它直连腾讯推流音频。
  * 密钥不出服务端，地址 5 分钟内有效；评测次数消耗在腾讯侧。
@@ -207,12 +238,64 @@ app.post('/api/speech/token', { preHandler: requireAuth }, (req, reply) => {
       .code(503)
       .send({ error: '服务端未配置口语评测密钥（SOE_APP_ID / SOE_SECRET_ID / SOE_SECRET_KEY）' })
   }
-  const { text, mode } = (req.body ?? {}) as { text?: string; mode?: string }
+  const { text, mode, wordId, attemptId, audioHash } = (req.body ?? {}) as {
+    text?: string
+    mode?: string
+    wordId?: string
+    attemptId?: string
+    audioHash?: string
+  }
   if (typeof text !== 'string' || text.trim() === '') {
     return reply.code(400).send({ error: 'text required' })
   }
+  if (
+    !wordId ||
+    wordId.length > 128 ||
+    !attemptId ||
+    !/^[a-zA-Z0-9._:-]{8,100}$/.test(attemptId) ||
+    !audioHash ||
+    !/^[a-f0-9]{64}$/i.test(audioHash)
+  ) {
+    return reply.code(400).send({ error: '有效的 wordId、attemptId 和 audioHash 为必填项' })
+  }
+  const normalizedAudioHash = audioHash.toLowerCase()
   const evalMode: SoeEvalMode = mode === 'sentence' ? 'sentence' : 'word'
-  return signSoeUrl(cred, { text: text.trim(), mode: evalMode })
+  const signed = signSoeUrl(cred, { text: text.trim(), mode: evalMode })
+  const userId = req.user!.id
+  const date = quotaDay()
+  const reserveAttempt = db.transaction(() => {
+    const duplicate = db
+      .prepare<[number, string, string, string], { attempt_id: string }>(
+        'SELECT attempt_id FROM speech_attempts WHERE user_id = ? AND quota_day = ? AND (attempt_id = ? OR audio_hash = ?) LIMIT 1',
+      )
+      .get(userId, date, attemptId, normalizedAudioHash)
+    if (duplicate) return { error: 'duplicate' as const }
+
+    const usage = getSpeechUsage(userId, wordId, date)
+    if (usage.accountRemaining <= 0) return { error: 'account-limit' as const, usage }
+    if (usage.wordRemaining <= 0) return { error: 'word-limit' as const, usage }
+
+    db.prepare(
+      `INSERT INTO speech_attempts
+        (user_id, word_id, attempt_id, audio_hash, quota_day, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run(userId, wordId, attemptId, normalizedAudioHash, date, now())
+    return { usage: getSpeechUsage(userId, wordId, date) }
+  })()
+
+  if ('error' in reserveAttempt) {
+    if (reserveAttempt.error === 'duplicate') {
+      return reply
+        .code(409)
+        .send({ error: '这段录音今天已经用过一次评分机会，明天可继续用它评分，或现在重新录一段' })
+    }
+    const message = reserveAttempt.error === 'account-limit'
+      ? `账号今日评分已达 ${SPEECH_QUOTA.perAccountPerDay} 次上限`
+      : `这个单词今日评分已达 ${SPEECH_QUOTA.perWordPerDay} 次上限`
+    return reply.code(429).send({ error: message, quota: reserveAttempt.usage })
+  }
+
+  return { ...signed, quota: reserveAttempt.usage }
 })
 
 app.listen({ port: PORT, host: HOST }).catch((err) => {

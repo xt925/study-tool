@@ -27,6 +27,21 @@ CREATE TABLE IF NOT EXISTS progress (
   data TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+-- 去重按「天」为界：同一天内同一次提交或同一段音频只计一次，
+-- 但跨天允许重评同一段录音，避免一次瞬时失败就把录音永久作废
+CREATE TABLE IF NOT EXISTS speech_attempts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  word_id TEXT NOT NULL,
+  attempt_id TEXT NOT NULL,
+  audio_hash TEXT NOT NULL,
+  quota_day TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  UNIQUE(user_id, quota_day, attempt_id),
+  UNIQUE(user_id, quota_day, audio_hash)
+);
+CREATE INDEX IF NOT EXISTS speech_attempts_daily
+  ON speech_attempts(user_id, quota_day, word_id);
 `)
 
 export interface UserRow {

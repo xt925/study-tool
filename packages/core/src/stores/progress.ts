@@ -31,11 +31,34 @@ interface ProgressState {
   stars: number
   learnedWords: string[]
   completedUnits: string[]
+  speechScores: SpeechScoreRecord[]
   /** 按 "YYYY-MM-DD" 记录每日已学单词数 */
   dailyWords: Record<string, number>
 }
 
+export interface SpeechScoreRecord {
+  id: string
+  unitId: string
+  wordId: string
+  total: number
+  accuracy: number
+  fluency: number
+  completion: number
+  recordedAt: string
+}
+
 const STATE_VERSION = 1
+
+/** 跟读评分记录只保留最近这么多条，避免长期使用后无限膨胀（会随进度一起同步） */
+const MAX_SPEECH_SCORES = 500
+
+/** 按时间裁剪评分记录，只保留最新的 MAX_SPEECH_SCORES 条 */
+function trimSpeechScores(records: SpeechScoreRecord[]): SpeechScoreRecord[] {
+  if (records.length <= MAX_SPEECH_SCORES) return records
+  return [...records]
+    .sort((a, b) => a.recordedAt.localeCompare(b.recordedAt))
+    .slice(-MAX_SPEECH_SCORES)
+}
 
 function genDeviceId(): string {
   return typeof crypto !== 'undefined' && crypto.randomUUID
@@ -77,6 +100,7 @@ function loadState(): ProgressState {
     stars: 0,
     learnedWords: [],
     completedUnits: [],
+    speechScores: [],
     dailyWords: {},
   }
   const adapter = getStorage()
@@ -96,6 +120,9 @@ function loadState(): ProgressState {
       completedUnits: Array.isArray(parsed.completedUnits)
         ? parsed.completedUnits
         : [],
+      speechScores: Array.isArray(parsed.speechScores)
+        ? trimSpeechScores(parsed.speechScores)
+        : [],
       dailyWords: parsed.dailyWords ?? {},
     }
   } catch {
@@ -112,6 +139,10 @@ export function mergeProgress(
   for (const [date, n] of Object.entries(b.dailyWords)) {
     dailyWords[date] = Math.max(dailyWords[date] ?? 0, n)
   }
+  const speechScores = new Map<string, SpeechScoreRecord>()
+  for (const record of [...a.speechScores, ...b.speechScores]) {
+    speechScores.set(record.id, record)
+  }
   return {
     version: Math.max(a.version, b.version),
     deviceId: a.deviceId, // 设备 id 始终以本机为准
@@ -119,6 +150,7 @@ export function mergeProgress(
     stars: Math.max(a.stars, b.stars),
     learnedWords: [...new Set([...a.learnedWords, ...b.learnedWords])],
     completedUnits: [...new Set([...a.completedUnits, ...b.completedUnits])],
+    speechScores: trimSpeechScores([...speechScores.values()]),
     dailyWords,
   }
 }
@@ -172,6 +204,19 @@ export const useProgressStore = defineStore('progress', {
     completeRepeat() {
       // 跟读完成 +5⭐
       this.addStars(5)
+    },
+    recordSpeechScore(
+      record: Omit<SpeechScoreRecord, 'recordedAt'>,
+    ) {
+      const saved = {
+        ...record,
+        recordedAt: new Date().toISOString(),
+      }
+      const existingIndex = this.speechScores.findIndex((item) => item.id === record.id)
+      if (existingIndex === -1) this.speechScores.push(saved)
+      else this.speechScores[existingIndex] = saved
+      this.speechScores = trimSpeechScores(this.speechScores)
+      this.persist()
     },
     answerCorrect() {
       // 答对题目 +10⭐
