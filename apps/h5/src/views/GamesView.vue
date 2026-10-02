@@ -24,6 +24,12 @@ const games = [
     name: '打怪游戏',
     desc: '答对题目攻击怪物，3 次打中即 KO',
   },
+  {
+    to: '/games/typing',
+    emoji: '🐸',
+    name: '打字过河',
+    desc: '在荷叶漂走前打出上面的单词，帮青蛙过河，打完自动播放发音和释义',
+  },
 ]
 </script>
 

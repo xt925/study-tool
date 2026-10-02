@@ -12,6 +12,7 @@ import LoginView from '@/views/LoginView.vue'
 import MatchGame from '@/views/MatchGame.vue'
 import ProfileView from '@/views/ProfileView.vue'
 import QuizView from '@/views/QuizView.vue'
+import TypingGame from '@/views/TypingGame.vue'
 import UnitsView from '@/views/UnitsView.vue'
 
 export const router = createRouter({
@@ -34,6 +35,7 @@ export const router = createRouter({
     { path: '/games/listen', name: 'listen-game', component: ListenGame },
     { path: '/games/match', name: 'match-game', component: MatchGame },
     { path: '/games/battle', name: 'battle-game', component: BattleGame },
+    { path: '/games/typing', name: 'typing-game', component: TypingGame },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })
