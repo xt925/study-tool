@@ -71,7 +71,7 @@ const wordsDone = ref(0)
 const mistakes = ref(0)
 const lastWord = ref<Word | null>(null)
 const splash = ref<{ x: number; lane: number } | null>(null)
-const flashWrong = ref(false)
+const wrongPadId = ref<number | null>(null)
 const jumping = ref(false)
 const earnedStars = ref(0)
 
@@ -180,12 +180,17 @@ function handleChar(raw: string) {
   )
   if (candidates.length === 0) {
     mistakes.value += 1
+    // 打到一半错了才红闪当前荷叶；第一个字母就错（还没有目标）不给提示
+    wrongPadId.value = targetId.value
     typed.value = ''
     targetId.value = null
-    flashWrong.value = false
-    requestAnimationFrame(() => {
-      flashWrong.value = true
-    })
+    if (wrongPadId.value !== null) {
+      timeouts.push(
+        window.setTimeout(() => {
+          wrongPadId.value = null
+        }, 300),
+      )
+    }
     return
   }
   typed.value = next
@@ -398,8 +403,7 @@ onBeforeUnmount(() => {
       <!-- 河面 -->
       <div
         ref="riverEl"
-        class="relative mx-4 mt-4 h-80 select-none overflow-hidden rounded-3xl bg-gradient-to-b from-sky-300 via-sky-400 to-sky-300 shadow-sm transition-shadow"
-        :class="{ 'river-wrong': flashWrong }"
+        class="relative mx-4 mt-4 h-80 select-none overflow-hidden rounded-3xl bg-gradient-to-b from-sky-300 via-sky-400 to-sky-300 shadow-sm"
       >
         <!-- 两岸 -->
         <div class="absolute inset-x-0 top-0 flex h-12 items-center justify-center gap-1 bg-emerald-200/90 text-xl">
@@ -422,9 +426,11 @@ onBeforeUnmount(() => {
           :key="p.id"
           class="absolute flex h-10 -translate-y-1/2 items-center justify-center rounded-full border-2 font-bold shadow-sm transition-colors"
           :class="
-            p.id === targetId
-              ? 'border-yellow-300 bg-emerald-500 text-white'
-              : 'border-emerald-600/40 bg-emerald-400/90 text-emerald-950'
+            p.id === wrongPadId
+              ? 'border-rose-500 bg-rose-400 text-white'
+              : p.id === targetId
+                ? 'border-yellow-300 bg-emerald-500 text-white'
+                : 'border-emerald-600/40 bg-emerald-400/90 text-emerald-950'
           "
           :style="{ left: `${p.x}px`, width: `${p.w}px`, top: laneTop(p.lane) }"
         >
@@ -532,16 +538,6 @@ onBeforeUnmount(() => {
 @keyframes frog-jump {
   50% {
     transform: translate(-50%, -160%) scale(1.15);
-  }
-}
-
-.river-wrong {
-  animation: river-wrong 0.3s;
-}
-
-@keyframes river-wrong {
-  50% {
-    box-shadow: inset 0 0 0 4px rgb(244 63 94 / 0.7);
   }
 }
 </style>
