@@ -403,15 +403,15 @@ onBeforeUnmount(() => {
       <!-- 河面 -->
       <div
         ref="riverEl"
-        class="relative mx-4 mt-4 h-80 select-none overflow-hidden rounded-3xl bg-gradient-to-b from-sky-300 via-sky-400 to-sky-300 shadow-sm"
+        class="relative mx-4 mt-4 h-[320px] select-none overflow-hidden rounded-3xl bg-gradient-to-b from-sky-300 via-sky-400 to-sky-300 shadow-sm"
       >
         <!-- 两岸 -->
-        <div class="absolute inset-x-0 top-0 flex h-12 items-center justify-center gap-1 bg-emerald-200/90 text-xl">
+        <div class="absolute inset-x-0 top-0 flex h-[48px] items-center justify-center gap-1 bg-emerald-200/90 text-xl">
           <!-- <span>🏁</span> -->
           <span v-for="i in crossed" :key="i">🐸</span>
           <span class="ml-1 text-sm font-bold text-emerald-700">{{ crossed }}/{{ FROGS_TO_WIN }}</span>
         </div>
-        <div class="absolute inset-x-0 bottom-0 flex h-12 items-center justify-between bg-emerald-200/90 text-sm font-bold text-emerald-700 px-1">
+        <div class="absolute inset-x-0 bottom-0 flex h-[48px] items-center justify-between bg-emerald-200/90 text-sm font-bold text-emerald-700 px-1">
           <span>
             {{ '❤️'.repeat(lives) || '💔' }}
           </span>
