@@ -7,6 +7,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import {
   getAllWords,
   grades,
+  meaningOf,
   shuffle,
   type Word,
 } from '@study/core'
@@ -76,7 +77,8 @@ const earnedStars = ref(0)
 
 const riverEl = ref<HTMLElement | null>(null)
 const riverWidth = ref(360)
-const inputEl = ref<HTMLInputElement | null>(null)
+
+const KEY_ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm']
 
 let activePool: Word[] = []
 let wordBag: Word[] = []
@@ -89,13 +91,13 @@ function laneTop(lane: number): string {
   // LANES = 4 → lane 4 = 对岸，-1 = 出发岸
   const tops: Record<number, number> = {
     4: 24,
-    3: 80,
-    2: 144,
-    1: 208,
-    0: 272,
-    [-1]: 360,
+    3: 72,
+    2: 128,
+    1: 184,
+    0: 240,
+    [-1]: 296,
   }
-  return `${tops[lane] ?? 360}px`
+  return `${tops[lane] ?? 296}px`
 }
 
 function padCenter(p: Pad): number {
@@ -280,7 +282,6 @@ function start() {
   phase.value = 'playing'
   void nextTick(() => {
     riverWidth.value = riverEl.value?.clientWidth ?? 360
-    focusInput()
     startLoop()
   })
 }
@@ -293,25 +294,8 @@ function backToPick() {
   stopSpeak()
 }
 
-function focusInput() {
-  inputEl.value?.focus()
-}
-
-function onInput(e: Event) {
-  const el = e.target as HTMLInputElement
-  const ch = el.value.slice(-1)
-  el.value = ''
-  if (ch) handleChar(ch)
-}
-
 function onKeydown(e: KeyboardEvent) {
-  // 输入框聚焦时由 @input 处理，避免重复计数；这里兜底桌面端输入框失焦的情况
-  if (document.activeElement === inputEl.value) return
   if (e.key.length === 1) handleChar(e.key)
-}
-
-function onInputBlur() {
-  if (phase.value === 'playing') window.setTimeout(focusInput, 50)
 }
 
 function onResize() {
@@ -414,16 +398,22 @@ onBeforeUnmount(() => {
       <!-- 河面 -->
       <div
         ref="riverEl"
-        class="relative mx-4 mt-4 h-96 select-none overflow-hidden rounded-3xl bg-gradient-to-b from-sky-300 via-sky-400 to-sky-300 shadow-sm transition-shadow"
+        class="relative mx-4 mt-4 h-80 select-none overflow-hidden rounded-3xl bg-gradient-to-b from-sky-300 via-sky-400 to-sky-300 shadow-sm transition-shadow"
         :class="{ 'river-wrong': flashWrong }"
-        @click="focusInput"
       >
         <!-- 两岸 -->
-        <div class="absolute inset-x-0 top-0 flex h-12 items-center justify-center bg-emerald-200/90 text-sm font-bold text-emerald-700">
-          🏁 对岸 · 已送过去 {{ crossed }} / {{ FROGS_TO_WIN }} 只
+        <div class="absolute inset-x-0 top-0 flex h-12 items-center justify-center gap-1 bg-emerald-200/90 text-xl">
+          <!-- <span>🏁</span> -->
+          <span v-for="i in crossed" :key="i">🐸</span>
+          <span class="ml-1 text-sm font-bold text-emerald-700">{{ crossed }}/{{ FROGS_TO_WIN }}</span>
         </div>
-        <div class="absolute inset-x-0 bottom-0 flex h-12 items-center justify-center bg-emerald-200/90 text-sm font-bold text-emerald-700">
-          🌿 出发岸 · {{ '❤️'.repeat(lives) || '💔' }} · 打对 {{ wordsDone }} 词 · 打错 {{ mistakes }} 次
+        <div class="absolute inset-x-0 bottom-0 flex h-12 items-center justify-between bg-emerald-200/90 text-sm font-bold text-emerald-700 px-1">
+          <span>
+            {{ '❤️'.repeat(lives) || '💔' }}
+          </span>
+          <span>
+            打对 {{ wordsDone }} 词 · 打错 {{ mistakes }} 次
+          </span>
         </div>
 
         <!-- 荷叶 -->
@@ -464,56 +454,43 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <p class="mt-2 text-center text-xs text-slate-400">
+      <!-- <p class="mt-2 text-center text-xs text-slate-400">
         从下往上跳：打出下一层荷叶上的单词，青蛙就会跳过去
-      </p>
+      </p> -->
 
-      <!-- 刚完成单词的释义卡片（打完即展示 + 自动发音） -->
+      <!-- 刚完成单词的释义条（打完即展示 + 自动发音） -->
       <div
-        v-if="lastWord"
-        class="mx-5 mt-3 rounded-3xl border-2 border-amber-200 bg-amber-50 p-4 shadow-sm"
+        class="mx-4 mt-2 flex items-baseline gap-2 rounded-2xl border border-amber-200 bg-amber-50 flex justify-between px-3 py-[2px] min-h-8 shadow-sm"
       >
-        <div class="flex items-center justify-between">
-          <h3 class="text-xl font-extrabold text-slate-800">{{ lastWord.word }}</h3>
-          <button
-            class="rounded-full bg-white px-3 py-1 text-sm font-bold text-sky-600 shadow-sm active:scale-95"
-            @click="speak(lastWord.word)"
-          >
-            🔊 再听一遍
-          </button>
-        </div>
-        <p v-if="lastWord.phonetic" class="mt-0.5 text-sm text-slate-400">
-          {{ lastWord.phonetic }}
-        </p>
-        <div v-for="(s, i) in lastWord.senses" :key="i" class="mt-1.5 text-sm text-slate-700">
-          <span class="mr-1 font-bold text-emerald-600">{{ s.pos }}</span>
-          {{ s.meaning }}
-        </div>
-        <div v-if="lastWord.example" class="mt-2 rounded-xl bg-white/70 p-3 text-sm">
-          <p class="text-slate-600">{{ lastWord.example }}</p>
-          <p v-if="lastWord.exampleMeaning" class="mt-0.5 text-slate-400">
-            {{ lastWord.exampleMeaning }}
-          </p>
-        </div>
+        <span class="shrink-0 text-lg font-extrabold text-slate-800">{{ lastWord?.word }}</span>
+        <span class="min-w-0 text-sm text-slate-600">{{ lastWord ? meaningOf(lastWord) : '' }}</span>
       </div>
 
-      <div class="mt-5 px-5">
+      <!-- <div class="mt-4 px-5">
         <AppButton color="ghost" class="py-2 text-base" @click="backToPick">↺ 换单词范围</AppButton>
-      </div>
+      </div> -->
 
-      <!-- 隐藏输入框：唤起手机软键盘，桌面端点击游戏区即聚焦 -->
-      <input
-        v-if="phase === 'playing'"
-        ref="inputEl"
-        type="text"
-        class="fixed left-1/2 top-1/2 -z-10 h-px w-px opacity-0"
-        autocapitalize="off"
-        autocomplete="off"
-        autocorrect="off"
-        spellcheck="false"
-        @input="onInput"
-        @blur="onInputBlur"
-      />
+      <!-- 屏幕小键盘（手机点按输入；桌面端实体键盘同样可用） -->
+      <template v-if="phase === 'playing'">
+        <!-- <div class="h-40"></div> -->
+        <div class="inset-x-0 z-10 bg-slate-100/95 px-2 pb-3 pt-2 backdrop-blur mt-2">
+          <div
+            v-for="(row, ri) in KEY_ROWS"
+            :key="row"
+            class="mx-auto flex max-w-md justify-center gap-1"
+            :class="{ 'mb-1.5': ri < KEY_ROWS.length - 1 }"
+          >
+            <button
+              v-for="k in row"
+              :key="k"
+              class="h-11 w-8 shrink-0 rounded-lg bg-white text-base font-bold uppercase text-slate-700 shadow active:scale-90 active:bg-sky-100"
+              @pointerdown.prevent="handleChar(k)"
+            >
+              {{ k }}
+            </button>
+          </div>
+        </div>
+      </template>
     </template>
 
     <!-- 结算 -->

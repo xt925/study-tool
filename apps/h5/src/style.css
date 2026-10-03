@@ -1,5 +1,16 @@
 @import 'tailwindcss';
 
+/* 根字号缩放：Tailwind 的间距/字号都是 rem，手机端整体缩小一档 */
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
 html,
 body,
 #app {

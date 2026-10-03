@@ -22,11 +22,13 @@ export interface Word {
 
 /** 单词的完整释义文本（多个词性的释义合并展示/出题用） */
 export function meaningOf(word: Word): string {
+  if (!word) return ''
   return word.senses.map((s) => s.meaning).join('；')
 }
 
 /** 词性文本，如 "n. v."；词组返回空串 */
-export function posOf(word: Word): string {
+export function posOf(word: Word | null | undefined): string {
+  if (!word) return ''
   return word.senses.map((s) => s.pos).filter(Boolean).join(' ')
 }
 
