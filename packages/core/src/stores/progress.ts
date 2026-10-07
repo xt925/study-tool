@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 
+import { findUnit } from '../data/words'
 import type { StorageAdapter } from '../platform'
 
 const STORAGE_KEY = 'english-h5-progress'
@@ -162,8 +163,15 @@ export const useProgressStore = defineStore('progress', {
     todayWordCount: (state) => state.dailyWords[todayKey()] ?? 0,
     isLearnedWord: (state) => (wordId: string) =>
       state.learnedWords.includes(wordId),
-    isUnitCompleted: (state) => (unitId: string) =>
-      state.completedUnits.includes(unitId),
+    // 单元是否"已完成"以该单元的全部单词是否都学过为准（而不是看完成奖励标记），
+    // 这样跳着学、或在单词表里逐个学完，状态都能正确反映
+    isUnitCompleted: (state) => (unitId: string) => {
+      const unit = findUnit(unitId)
+      if (!unit || unit.words.length === 0) {
+        return state.completedUnits.includes(unitId)
+      }
+      return unit.words.every((w) => state.learnedWords.includes(w.id))
+    },
   },
   actions: {
     persist() {

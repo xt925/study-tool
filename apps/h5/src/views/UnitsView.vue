@@ -26,7 +26,7 @@ const grade = computed(() => getGrade(route.params.gradeId as string))
         v-for="u in grade.units"
         :key="u.id"
         class="rounded-3xl bg-white p-5 text-left shadow-sm transition active:scale-95"
-        @click="router.push(`/learn/${grade.id}/${u.id}`)"
+        @click="router.push(`/grades/${grade.id}/${u.id}`)"
       >
         <div class="flex items-center justify-between">
           <div>

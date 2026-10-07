@@ -12,7 +12,9 @@ import LoginView from '@/views/LoginView.vue'
 import MatchGame from '@/views/MatchGame.vue'
 import ProfileView from '@/views/ProfileView.vue'
 import QuizView from '@/views/QuizView.vue'
+import SearchView from '@/views/SearchView.vue'
 import TypingGame from '@/views/TypingGame.vue'
+import UnitWordsView from '@/views/UnitWordsView.vue'
 import UnitsView from '@/views/UnitsView.vue'
 
 export const router = createRouter({
@@ -36,6 +38,12 @@ export const router = createRouter({
       meta: { title: '选择单元' },
     },
     {
+      path: '/grades/:gradeId/:unitId',
+      name: 'unit-words',
+      component: UnitWordsView,
+      meta: { title: '单词表' },
+    },
+    {
       path: '/learn/:gradeId/:unitId',
       name: 'learn',
       component: LearnView,
@@ -48,6 +56,7 @@ export const router = createRouter({
       meta: { title: '练习' },
     },
     { path: '/games', name: 'games', component: GamesView, meta: { title: '游戏乐园' } },
+    { path: '/search', name: 'search', component: SearchView, meta: { title: '查单词' } },
     {
       path: '/games/listen',
       name: 'listen-game',

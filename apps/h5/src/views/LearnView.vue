@@ -26,9 +26,15 @@ const found = computed(() =>
   getUnit(route.params.gradeId as string, route.params.unitId as string),
 )
 const unit = computed(() => found.value?.unit)
-const index = ref(0)
+// 支持从单词表/检索结果带 ?i=下标 直达某个单词（越界时收敛到合法范围）
+const startIndex = (() => {
+  const raw = Math.floor(Number(route.query.i))
+  return Number.isFinite(raw) && raw > 0 ? raw : 0
+})()
+const index = ref(
+  Math.min(startIndex, Math.max(0, (unit.value?.words.length ?? 1) - 1)),
+)
 const current = computed(() => unit.value?.words[index.value])
-const learnedThisUnit = ref(0)
 const showComplete = ref(false)
 
 const isRecording = ref(false)
@@ -261,17 +267,25 @@ function nextWord() {
   }
   if (!current.value || !unit.value) return
   progress.completeWord(current.value.id)
-  learnedThisUnit.value += 1
   hasRecording.value = false
   recordingBlob.value = null
   recordingAttemptId.value = ''
   scoreSubmitted.value = false
   score.value = null
-  if (index.value < unit.value.words.length - 1) {
-    index.value += 1
-  } else {
+  // 支持跳着学：只要还有没学过的单词，就跳到下一个没学的（到末尾后从头找）；
+  // 全部学完才弹完成提示
+  const words = unit.value.words
+  if (words.every((w) => progress.isLearnedWord(w.id))) {
     progress.completeUnit(unit.value.id)
     showComplete.value = true
+    return
+  }
+  for (let step = 1; step <= words.length; step++) {
+    const candidate = (index.value + step) % words.length
+    if (!progress.isLearnedWord(words[candidate].id)) {
+      index.value = candidate
+      break
+    }
   }
 }
 

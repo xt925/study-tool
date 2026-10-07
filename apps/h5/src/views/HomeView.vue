@@ -16,7 +16,15 @@ const percent = computed(() =>
 
 <template>
   <div class="flex min-h-screen flex-col px-5 pb-10">
-    <div class="flex justify-end pt-4">
+    <div class="flex justify-between pt-4">
+      <!-- 全库查单词：输入单词/音标/中文即可检索 -->
+      <button
+        class="flex h-11 w-11 items-center justify-center rounded-full bg-white text-xl shadow-sm transition active:scale-95"
+        aria-label="查单词"
+        @click="router.push('/search')"
+      >
+        🔍
+      </button>
       <!-- 默认头像，点进个人信息页（家长中心 / 同步 / 退出登录 都在里面） -->
       <button
         class="flex h-11 w-11 items-center justify-center rounded-full bg-white text-xl shadow-sm transition active:scale-95"

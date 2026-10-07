@@ -68,6 +68,59 @@ export function getUnit(
   return grade && unit ? { grade, unit } : undefined
 }
 
+/** 按单元 id 全库查找单元（不知道所属年级时用，如进度判定） */
+export function findUnit(unitId: string): Unit | undefined {
+  for (const g of grades) {
+    const unit = g.units.find((u) => u.id === unitId)
+    if (unit) return unit
+  }
+  return undefined
+}
+
 export function getAllWords(): Word[] {
   return grades.flatMap((g) => g.units.flatMap((u) => u.words))
+}
+
+export interface WordHit {
+  word: Word
+  gradeId: string
+  unitId: string
+  /** 单词在该单元中的下标，用于跳转到学习详情页定位 */
+  index: number
+}
+
+export interface SearchOptions {
+  /** 最多返回多少条结果，避免关键词过泛时一次渲染几千条 */
+  limit?: number
+}
+
+/**
+ * 全库检索：按单词、音标、释义模糊匹配（不区分大小写）。
+ * 单词/词组前缀命中的排在前面，其余按原文顺序。
+ */
+export function searchWords(query: string, opts: SearchOptions = {}): WordHit[] {
+  const q = query.trim().toLowerCase()
+  if (!q) return []
+  const limit = opts.limit ?? 100
+  const hits: WordHit[] = []
+  const prefixHits: WordHit[] = []
+  for (const g of grades) {
+    for (const u of g.units) {
+      for (const [i, w] of u.words.entries()) {
+        const inWord = w.word.toLowerCase().includes(q)
+        const inPhonetic = w.phonetic?.toLowerCase().includes(q) ?? false
+        const inMeaning = w.senses.some((s) => s.meaning.toLowerCase().includes(q))
+        if (!inWord && !inPhonetic && !inMeaning) continue
+        const hit: WordHit = {
+          word: w,
+          gradeId: g.id,
+          unitId: u.id,
+          index: i,
+        }
+        if (inWord && w.word.toLowerCase().startsWith(q)) prefixHits.push(hit)
+        else hits.push(hit)
+      }
+    }
+  }
+  return [...prefixHits, ...hits].slice(0, limit)
 }
