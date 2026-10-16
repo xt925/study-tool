@@ -10,7 +10,7 @@ const words_8b = {
                 {
                     id: 'g8b-u1-w1',
                     word: 'spiderman',
-                    phonetic: '/ˈspaidamən/',
+                    phonetic: '/ˈspaɪdəmæn/',
                     senses: [{ pos: 'n.', meaning: '“蜘蛛人”（指高空作业人员）' }],
                 },
                 {
@@ -22,7 +22,7 @@ const words_8b = {
                 {
                     id: 'g8b-u1-w3',
                     word: 'drop',
-                    phonetic: '/drop/',
+                    phonetic: '/drɒp/',
                     senses: [{ pos: 'n.', meaning: '(液体的) 滴' }],
                 },
                 {
@@ -34,13 +34,13 @@ const words_8b = {
                 {
                     id: 'g8b-u1-w5',
                     word: 'watermelon',
-                    phonetic: '/ˈwɔːtaˌmelən/',
+                    phonetic: '/ˈwɔːtəmelən/',
                     senses: [{ pos: 'n.', meaning: '西瓜' }],
                 },
                 {
                     id: 'g8b-u1-w6',
                     word: 'remind',
-                    phonetic: '/riˈmænd/',
+                    phonetic: '/rɪˈmaɪnd/',
                     senses: [{ pos: 'v.', meaning: '使想起（某人或某事）' }],
                 },
                 {
@@ -94,7 +94,7 @@ const words_8b = {
                 {
                     id: 'g8b-u1-w15',
                     word: 'skill',
-                    phonetic: '/skil/',
+                    phonetic: '/skɪl/',
                     senses: [{ pos: 'n.', meaning: '技能，技巧，技艺' }],
                 },
                 {
@@ -106,13 +106,13 @@ const words_8b = {
                 {
                     id: 'g8b-u1-w17',
                     word: 'require',
-                    phonetic: '/riˈkwaɪə/',
+                    phonetic: '/rɪˈkwaɪə/',
                     senses: [{ pos: 'v.', meaning: '需要（某物）' }],
                 },
                 {
                     id: 'g8b-u1-w18',
                     word: 'organise',
-                    phonetic: '/ˈɔːɡənaɪz/',
+                    phonetic: '/ˈɔːgənaɪz/',
                     senses: [{ pos: 'v.', meaning: '组织，策划，安排' }],
                 },
                 {
@@ -124,7 +124,7 @@ const words_8b = {
                 {
                     id: 'g8b-u1-w20',
                     word: 'benefit',
-                    phonetic: '/ˈbenəfɪt/',
+                    phonetic: '/ˈbenɪfɪt/',
                     senses: [{ pos: 'n.', meaning: '好处，益处，裨益' }],
                 },
                 {
@@ -154,7 +154,7 @@ const words_8b = {
                 {
                     id: 'g8b-u1-w25',
                     word: 'replace',
-                    phonetic: '/riˈpleɪs/',
+                    phonetic: '/rɪˈpleɪs/',
                     senses: [{ pos: 'v.', meaning: '以……替换，更换' }],
                 },
                 {
@@ -172,7 +172,7 @@ const words_8b = {
                 {
                     id: 'g8b-u1-w28',
                     word: 'autopilot',
-                    phonetic: '/ˈɔːtəʊˌpaɪlət/',
+                    phonetic: '/ˈɔːtəʊpaɪlət/',
                     senses: [{ pos: 'n.', meaning: '自动驾驶仪' }],
                 },
                 {
@@ -202,7 +202,7 @@ const words_8b = {
                 {
                     id: 'g8b-u1-w33',
                     word: 'beyond',
-                    phonetic: '/biˈjɒnd/',
+                    phonetic: '/bɪˈjɒnd/',
                     senses: [{ pos: 'adv.', meaning: '在更远处；往更远处' }],
                 },
                 {
@@ -238,7 +238,7 @@ const words_8b = {
                 {
                     id: 'g8b-u2-w1',
                     word: 'pm',
-                    phonetic: '/piːˈem/',
+                    phonetic: '/ˌpiː ˈem/',
                     senses: [{ pos: 'n.', meaning: '下午（用于表示钟点的数字之后）' }],
                 },
                 {
@@ -262,7 +262,7 @@ const words_8b = {
                 {
                     id: 'g8b-u2-w5',
                     word: 'realise',
-                    phonetic: '/ˈrɪəlaɪz/',
+                    phonetic: '/ˈriːəlaɪz/',
                     senses: [{ pos: 'v.', meaning: '知道：明白；认识到；顿悟' }],
                 },
                 {
@@ -298,7 +298,7 @@ const words_8b = {
                 {
                     id: 'g8b-u2-w11',
                     word: 'policewoman',
-                    phonetic: '/pəˈliːsˌwʊmən/',
+                    phonetic: '/pəˈliːswʊmən/',
                     senses: [{ pos: 'n.', meaning: '女警察' }],
                 },
                 {
@@ -346,7 +346,7 @@ const words_8b = {
                 {
                     id: 'g8b-u2-w19',
                     word: 'disagreement',
-                    phonetic: '/ˌdɪsəˈɡriːmənt/',
+                    phonetic: '/ˌdɪsəˈgriːmənt/',
                     senses: [{ pos: 'n.', meaning: '意见不和，分歧，争论' }],
                 },
                 {
@@ -376,7 +376,7 @@ const words_8b = {
                 {
                     id: 'g8b-u2-w24',
                     word: 'heartbreaking',
-                    phonetic: '/ˈhɑːtˌbreɪkɪŋ/',
+                    phonetic: '/ˈhɑːtbreɪkɪŋ/',
                     senses: [{ pos: 'adj.', meaning: '使人心碎的' }],
                 },
                 {
@@ -526,7 +526,7 @@ const words_8b = {
                 {
                     id: 'g8b-u3-w19',
                     word: 'break',
-                    phonetic: '/breik/',
+                    phonetic: '/breɪk/',
                     senses: [{ pos: 'v.', meaning: '使破裂，使破碎' }],
                 },
                 {
@@ -538,7 +538,7 @@ const words_8b = {
                 {
                     id: 'g8b-u3-w21',
                     word: 'voluntary',
-                    phonetic: '/ˈvɒləntəri/',
+                    phonetic: '/ˈvɒləntri/',
                     senses: [{ pos: 'adj.', meaning: '志愿的' }],
                 },
                 {
@@ -580,7 +580,7 @@ const words_8b = {
                 {
                     id: 'g8b-u3-w28',
                     word: 'teammate',
-                    phonetic: '/ˈtiːm-meɪt/',
+                    phonetic: '/ˈtiːmmeɪt/',
                     senses: [{ pos: 'n.', meaning: '队友' }],
                 },
                 {
@@ -628,6 +628,7 @@ const words_8b = {
                 {
                     id: 'g8b-u3-w36',
                     word: 'base camp',
+                    phonetic: '/ˈbeɪs kæmp/',
                     senses: [{ pos: '', meaning: '(登山) 大本营' }],
                     isPhrase: true,
                 },
@@ -646,12 +647,13 @@ const words_8b = {
                 {
                     id: 'g8b-u4-w1',
                     word: 'excuse',
-                    phonetic: '/ɪkˈskjuːz/',
+                    phonetic: '/ɪkˈskjuːs/',
                     senses: [{ pos: 'v.', meaning: '原谅' }],
                 },
                 {
                     id: 'g8b-u4-w2',
                     word: 'excuse me',
+                    phonetic: '/ɪkˈskjʊs mi/',
                     senses: [{ pos: '', meaning: '劳驾（用于礼貌地引起他人注意，尤其是发问时）' }],
                     isPhrase: true,
                 },
@@ -712,6 +714,7 @@ const words_8b = {
                 {
                     id: 'g8b-u4-w12',
                     word: 'pocket money',
+                    phonetic: '/ˈpɒkɪt mʌni/',
                     senses: [{ pos: '', meaning: '零花钱' }],
                     isPhrase: true,
                 },
@@ -760,7 +763,7 @@ const words_8b = {
                 {
                     id: 'g8b-u4-w20',
                     word: 'bottle',
-                    phonetic: '/ˈbɒtl/',
+                    phonetic: '/ˈbɒtəl/',
                     senses: [{ pos: 'n.', meaning: '瓶子' }],
                 },
                 {
@@ -772,13 +775,13 @@ const words_8b = {
                 {
                     id: 'g8b-u4-w22',
                     word: 'exam',
-                    phonetic: '/ɪɡˈzæm/',
+                    phonetic: '/ɪgˈzæm/',
                     senses: [{ pos: 'n.', meaning: '考试' }],
                 },
                 {
                     id: 'g8b-u4-w23',
                     word: 'dialogue',
-                    phonetic: '/ˈdaɪəlɒɡ/',
+                    phonetic: '/ˈdaɪəlɒg/',
                     senses: [{ pos: 'n.', meaning: '对话' }],
                 },
                 {
@@ -796,13 +799,13 @@ const words_8b = {
                 {
                     id: 'g8b-u4-w26',
                     word: 'donate',
-                    phonetic: '/dəʊˈneit/',
+                    phonetic: '/dəʊˈneɪt/',
                     senses: [{ pos: 'v.', meaning: '捐赠，捐献' }],
                 },
                 {
                     id: 'g8b-u4-w27',
                     word: 'goodwill',
-                    phonetic: '/ˌɡʊdˈwɪl/',
+                    phonetic: '/ˌgʊdˈwɪl/',
                     senses: [{ pos: 'n.', meaning: '好意，亲善，友善' }],
                 },
                 {
@@ -820,13 +823,13 @@ const words_8b = {
                 {
                     id: 'g8b-u4-w30',
                     word: 'against',
-                    phonetic: '/əˈɡenst/',
+                    phonetic: '/əˈgenst/',
                     senses: [{ pos: 'prep.', meaning: '反对，和什么对抗' }],
                 },
                 {
                     id: 'g8b-u4-w31',
                     word: 'graduate',
-                    phonetic: '/ˈɡrædʒuːeɪt/',
+                    phonetic: '/ˈgrædʒuˌeɪt/',
                     senses: [{ pos: 'v.', meaning: '大学毕业' }],
                 },
                 {
@@ -880,7 +883,7 @@ const words_8b = {
                 {
                     id: 'g8b-u5-w3',
                     word: 'feather-covered',
-                    phonetic: '/ˈfeðəˌkʌvəd/',
+                    phonetic: '/ˈfeðə kʌvəd/',
                     senses: [{ pos: 'adj.', meaning: '羽毛覆盖的' }],
                 },
                 {
@@ -940,7 +943,7 @@ const words_8b = {
                 {
                     id: 'g8b-u5-w13',
                     word: 'unlock',
-                    phonetic: '/ʌnˈlɒk/',
+                    phonetic: '/ˌʌnˈlɒk/',
                     senses: [{ pos: 'v.', meaning: '解锁' }],
                 },
                 {
@@ -958,7 +961,7 @@ const words_8b = {
                 {
                     id: 'g8b-u5-w16',
                     word: 'newspaper',
-                    phonetic: '/ˈnjuːsˌpeɪpə/',
+                    phonetic: '/ˈnjuːzpeɪpə/',
                     senses: [{ pos: 'n.', meaning: '报纸' }],
                 },
                 {
@@ -988,7 +991,7 @@ const words_8b = {
                 {
                     id: 'g8b-u5-w21',
                     word: 'argument',
-                    phonetic: '/ˈɑːɡjumənt/',
+                    phonetic: '/ˈɑːgjumənt/',
                     senses: [{ pos: 'n.', meaning: '论点，论据' }],
                 },
                 {
@@ -1000,7 +1003,7 @@ const words_8b = {
                 {
                     id: 'g8b-u5-w23',
                     word: 'model',
-                    phonetic: '/ˈmɒdl/',
+                    phonetic: '/ˈmɒdəl/',
                     senses: [{ pos: 'n.', meaning: '模型' }],
                 },
                 {
@@ -1024,7 +1027,7 @@ const words_8b = {
                 {
                     id: 'g8b-u5-w27',
                     word: 'upload',
-                    phonetic: '/ʌpˈləʊd/',
+                    phonetic: '/ˌʌpˈləʊd/',
                     senses: [{ pos: 'v.', meaning: '上载，上传' }],
                 },
                 {
@@ -1072,13 +1075,13 @@ const words_8b = {
                 {
                     id: 'g8b-u5-w35',
                     word: 'anybody',
-                    phonetic: '/ˈeniˌbɒdi/',
+                    phonetic: '/ˈenibɒdi/',
                     senses: [{ pos: 'pron.', meaning: '任何人' }],
                 },
                 {
                     id: 'g8b-u5-w36',
                     word: 'magnifier',
-                    phonetic: '/ˈmæɡnɪfaɪə/',
+                    phonetic: '/ˈmægnɪfaɪə/',
                     senses: [{ pos: 'n.', meaning: '放大镜' }],
                 },
                 {
@@ -1120,7 +1123,7 @@ const words_8b = {
                 {
                     id: 'g8b-u5-w43',
                     word: 'granddaughter',
-                    phonetic: '/ˈɡrænˌdɔːtə/',
+                    phonetic: '/ˈgrændɔːtə/',
                     senses: [{ pos: 'n.', meaning: '孙女；外孙女' }],
                 },
                 {
@@ -1221,7 +1224,8 @@ const words_8b = {
                 },
                 {
                     id: 'g8b-u6-w15',
-                    word: 'bee-keeping n.',
+                    word: 'bee-keeping',
+                    phonetic: '/ˈbiː kiːpɪŋ/',
                     senses: [{ pos: '', meaning: '养蜂' }],
                     isPhrase: true,
                 },
@@ -1270,7 +1274,7 @@ const words_8b = {
                 {
                     id: 'g8b-u6-w23',
                     word: 'resource',
-                    phonetic: '/rɪˈzɔːs/',
+                    phonetic: '/rɪˈsɔːs/',
                     senses: [{ pos: 'n.', meaning: '资源（指土地、矿产等）' }],
                 },
                 {
@@ -1324,7 +1328,7 @@ const words_8b = {
                 {
                     id: 'g8b-u6-w32',
                     word: 'underground',
-                    phonetic: '/ˈʌndəɡraʊnd/',
+                    phonetic: '/ˌʌndəˈgraʊnd/',
                     senses: [{ pos: 'adj.', meaning: '地（面）下的' }],
                 },
                 {
