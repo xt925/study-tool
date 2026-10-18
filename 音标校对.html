@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>批量音标校对台</title>
+<style>
+:root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#20242b;background:#f5f7fa;font-synthesis:none}
+*{box-sizing:border-box}body{margin:0}header{background:#fff;border-bottom:1px solid #e3e7ee;padding:20px max(18px,calc((100% - 1440px)/2))}h1{font-size:23px;margin:0 0 6px}p{margin:5px 0;color:#687385;line-height:1.6;font-size:13px}.wrap{max-width:1440px;margin:0 auto;padding:20px 18px 48px}.panel{background:#fff;border:1px solid #e2e7ef;border-radius:12px;padding:16px;margin-bottom:14px}.panel h2{font-size:15px;margin:0 0 12px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row>*{max-width:100%}button,.filebtn{border:1px solid #d4dae4;background:#fff;color:#293241;padding:9px 12px;border-radius:8px;font-size:13px;cursor:pointer}button.primary{background:#2457d6;color:white;border-color:#2457d6}button:disabled{opacity:.45;cursor:not-allowed}button:hover,.filebtn:hover{filter:brightness(.97)}textarea{width:100%;min-height:145px;border:1px solid #d8dee8;border-radius:8px;padding:10px;font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical}input[type=text],select{border:1px solid #d8dee8;border-radius:7px;padding:8px;font-size:13px;min-width:100px}input[type=text]{width:100%}.small{font-size:12px;color:#778194}.stats{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.stat{background:#f2f5fa;border-radius:8px;padding:8px 12px;font-size:12px}.stat b{font-size:16px;margin-right:5px}.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.toolbar input{max-width:250px}.tablewrap{overflow:auto;border:1px solid #e4e8ef;border-radius:10px}table{width:100%;border-collapse:collapse;min-width:1000px;font-size:13px}th{background:#f7f9fc;text-align:left;color:#596579;font-weight:600;position:sticky;top:0}th,td{padding:9px;border-bottom:1px solid #edf0f5;vertical-align:middle}tr:last-child td{border-bottom:0}tr.flag td{background:#fffaf0}tr.good td{background:#f6fcf8}.word{font-weight:650}.meaning{font-size:12px;color:#768194;max-width:200px}.phonetic-input{min-width:150px;width:100%;font-family:ui-monospace,monospace}.ref{font-family:ui-monospace,monospace;min-width:145px;display:block;overflow-wrap:anywhere}.status{display:inline-block;border-radius:5px;padding:4px 6px;font-size:11px;background:#eef1f6;color:#566174}.status.bad{background:#fff0d9;color:#8b5500}.status.ok{background:#e5f7ec;color:#176b3a}.status.err{background:#fde8e8;color:#a12828}.status.pending{background:#e8efff;color:#254ea7}.status.warn{background:#eef2ff;color:#3b4a9c}.footer{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}.hide{display:none!important}.notice{padding:10px 12px;background:#f2f6ff;border-radius:8px;font-size:12px;line-height:1.6;color:#435577}.danger{background:#fff4f1;color:#93422e}.pill{border:0;background:#eef2f8;padding:6px 9px}.checkbox{display:flex;gap:6px;align-items:center;font-size:12px;color:#596579}audio{height:28px;width:145px}@media(max-width:700px){header{padding:16px}.wrap{padding:12px}.panel{padding:12px}h1{font-size:20px}}
+</style>
+</head>
+<body>
+<header><h1>批量音标校对台</h1><p>导入 OCR 词表 → 批量查询参考音标 → 审查差异 → 回写原始 JS / 导出 JSON、CSV。</p></header>
+<main class="wrap">
+<section class="panel">
+<h2>① 导入数据</h2>
+<p>支持你现有的 JS 词表对象（例如 <code>const words_7a = { units: [...] }</code>），也支持 JSON、CSV。JS 导入会尽量保留原格式，导出时只回写音标字段。</p>
+<textarea id="source" placeholder="把 JS 词表、JSON 或 CSV 粘贴到这里；也可以选择本地文件…"></textarea>
+<div class="row" style="margin-top:10px">
+<label class="filebtn">选择文件<input id="file" type="file" accept=".js,.txt,.json,.csv" hidden></label>
+<button class="primary" id="import">解析词表</button><button id="demo">载入示例</button><button id="clear">清空</button>
+<span class="small" id="importMsg">数据默认只保存在当前页面；可手动导出备份。</span>
+</div>
+</section>
+<section class="panel">
+<h2>② 查询与校对</h2>
+<div class="row">
+<label>参考词典
+<select id="provider">
+<option value="ipa">离线 IPA 词典（推荐，免费无 Key）</option>
+<option value="online">Free Dictionary API（在线备用）</option>
+</select></label>
+<label>优先口音
+<select id="accent"><option value="uk">英式优先</option><option value="us">美式优先</option><option value="any">任意可用</option></select></label>
+<label class="checkbox"><input id="onlyMissing" type="checkbox"> 只查询缺失音标</label>
+<label class="checkbox"><input id="onlyFlags" type="checkbox"> 只看异常/待确认</label>
+<button class="primary" id="fetch">批量查询参考音标</button>
+<button id="stop" disabled>停止查询</button>
+</div>
+<div class="notice" style="margin-top:12px">说明：「离线 IPA 词典」用的是开源词库 ipa-dict（英式 6.5 万词 / 美式 12.6 万词），第一次查询时下载一次（英式约 1.7 MB，浏览器会缓存），之后批量查询完全离线，不受限流影响。原来的 Free Dictionary API 目前服务端大量返回 522，已降为备用。参考音标只是候选项，不会自动覆盖原音标；多音词、短语请人工确认。「词典发音」用的是有道发音直链，仅供试听。</div>
+<div class="small" id="dictStatus" style="margin-top:6px"></div>
+<div class="stats" id="stats"></div>
+<div class="toolbar">
+<input id="search" type="text" placeholder="搜索英文、中文释义或音标…">
+<select id="filter"><option value="all">全部状态</option><option value="flag">异常 / 待确认</option><option value="diff">差异较大（重点复核）</option><option value="close">接近（多为记法差异）</option><option value="missing">缺少原音标</option><option value="matched">已核对 / 一致</option><option value="error">查询失败</option></select>
+<select id="sort"><option value="none">原始顺序</option><option value="simAsc">相似度低 → 高</option><option value="simDesc">相似度高 → 低</option></select>
+<button id="acceptVisible">批量采用当前可见参考音标</button>
+<button id="resetStatus">重置确认状态</button>
+</div>
+<div class="tablewrap"><table><thead><tr><th>#</th><th>英文</th><th>释义</th><th>原音标（可编辑）</th><th>参考音标</th><th>词典发音</th><th>状态 / 操作</th></tr></thead><tbody id="tbody"><tr><td colspan="7" class="small">请先导入词表。</td></tr></tbody></table></div>
+<div class="footer"><span class="small" id="visibleCount"></span><div class="row"><button id="prev">上一页</button><span class="small" id="pageInfo"></span><button id="next">下一页</button></div></div>
+</section>
+<section class="panel">
+<h2>③ 导出校对结果</h2>
+<div class="row"><button class="primary" id="exportSource">导出回写后的原始 JS</button><button id="exportJson">导出 JSON（校对表）</button><button id="exportCsv">导出 CSV</button><button id="saveLocal">保存进度到此浏览器</button><button id="loadLocal">恢复本地进度</button></div>
+<p>回写 JS 会保留原始数据结构、释义等字段，并替换或补齐每条单词记录中的 <code>phonetic</code>。建议导出后先做代码 diff，再替换项目原文件。</p>
+<div class="notice danger">校对工具不能保证参考音标一定正确。请特别复核多音词（如 wind）、词性依赖读音的词，以及 API 未返回结果的短语。不要把“参考音标不同”直接等同于“原音标错误”。</div>
+</section>
+</main>
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+let items=[], originalSource='', sourceType='js', stopped=false, page=1, pageSize=50;
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function unquote(s){if(!s)return '';s=s.trim();if((s[0]==="'"&&s.at(-1)==="'")||(s[0]==='"'&&s.at(-1)==='"')||(s[0]==='`'&&s.at(-1)==='`')){let body=s.slice(1,-1);return body.replace(/\\(['"\\])/g,'$1').replace(/\\n/g,'\n')}return s}
+function prop(block,key){const re=new RegExp('(?:^|[\\n,])\\s*'+key+'\\s*:\\s*([\\s\\S]*?)(?=,\\s*(?:\\w+\\s*:)|\\n\\s*\\w+\\s*:|\\s*$)');const m=block.match(re);if(!m)return '';let v=m[1].trim().replace(/,\s*$/,'');if(v.startsWith("'")||v.startsWith('"')||v.startsWith('`')){const q=v[0];let end=-1;for(let i=1;i<v.length;i++){if(v[i]===q&&v[i-1]!=='\\'){end=i;break}}if(end>=0)v=v.slice(0,end+1)}return unquote(v)}
+function hasOwn(block,key){let depth=0,quote=null,escape=false;for(let i=0;i<block.length;i++){const c=block[i];if(quote){if(escape){escape=false;continue}if(c==='\\'){escape=true;continue}if(c===quote)quote=null;continue}if(c==="'"||c==='\"'||c==='`'){quote=c;continue}if(c==='{'){depth++;continue}if(c==='}'){depth--;continue}if(depth===1&&/[A-Za-z_$]/.test(c)){const m=block.slice(i).match(/^([A-Za-z_$][\w$]*)\s*:/);if(m&&m[1]===key)return true}}return false}
+function balancedObjects(src){const out=[];let stack=[],quote=null,escape=false,lineComment=false,blockComment=false;for(let i=0;i<src.length;i++){const c=src[i],n=src[i+1];if(lineComment){if(c==='\n')lineComment=false;continue}if(blockComment){if(c==='*'&&n==='/'){blockComment=false;i++}continue}if(quote){if(escape){escape=false;continue}if(c==='\\'){escape=true;continue}if(c===quote)quote=null;continue}if(c==='/'&&n==='/'){lineComment=true;i++;continue}if(c==='/'&&n==='*'){blockComment=true;i++;continue}if(c==="'"||c==='"'||c==='`'){quote=c;continue}if(c==='{')stack.push(i);if(c==='}'&&stack.length){const start=stack.pop();const text=src.slice(start,i+1);if(hasOwn(text,'word')&&hasOwn(text,'id'))out.push({start,end:i+1,text})}}return out.sort((a,b)=>a.start-b.start)}
+function parseJS(src){const blocks=balancedObjects(src).filter(o=>/\bword\s*:/.test(o.text)&&/\bid\s*:/.test(o.text));const seen=new Set(),arr=[];for(const b of blocks){const word=prop(b.text,'word');if(!word||seen.has(b.start))continue;seen.add(b.start);const phonetic=prop(b.text,'phonetic');const meaningMatches=[...b.text.matchAll(/\bmeaning\s*:\s*(['"`])([\s\S]*?)\1/g)];const meanings=meaningMatches.map(m=>m[2]).filter(Boolean).join('；');const id=prop(b.text,'id');const isPhrase=/\bisPhrase\s*:\s*true/.test(b.text)||/\s/.test(word);arr.push({word,phonetic,meaning:meanings,id,sourceStart:b.start,sourceEnd:b.end,block:b.text,reference:'',audio:'',apiStatus:'未查询',review:phonetic?'待确认':'缺少音标',confirmed:false,accepted:false,isPhrase})}return arr}
+function parseCSV(src){const lines=src.replace(/^\uFEFF/,'').split(/\r?\n/).filter(x=>x.trim());if(!lines.length)return[];function row(s){let a=[],v='',q=false;for(let i=0;i<s.length;i++){let c=s[i];if(c==='"'&&s[i+1]==='"'&&q){v+='"';i++}else if(c==='"')q=!q;else if(c===','&&!q){a.push(v);v=''}else v+=c}a.push(v);return a}const head=row(lines[0]).map(x=>x.trim().toLowerCase());const wi=head.findIndex(x=>['word','english','英文','单词'].includes(x));const pi=head.findIndex(x=>['phonetic','ipa','音标','pronunciation'].includes(x));const mi=head.findIndex(x=>['meaning','释义','中文','translation'].includes(x));return lines.slice(1).map((l,i)=>{const a=row(l);return {word:a[wi>=0?wi:0]||'',phonetic:a[pi>=0?pi:1]||'',meaning:a[mi>=0?mi:2]||'',id:String(i+1),sourceStart:null,sourceEnd:null,block:'',reference:'',audio:'',apiStatus:'未查询',review:(a[pi>=0?pi:1]||'')?'待确认':'缺少音标',confirmed:false,accepted:false,isPhrase:/\s/.test(a[wi>=0?wi:0]||'')}}).filter(x=>x.word.trim())}
+function parseJSON(src){let data=JSON.parse(src);let arr=[];function visit(x){if(Array.isArray(x)){x.forEach(visit);return}if(x&&typeof x==='object'){if(typeof x.word==='string'){arr.push({word:x.word,phonetic:x.phonetic||'',meaning:(x.senses||[]).map(s=>s.meaning||'').join('；')||x.meaning||'',id:x.id||String(arr.length+1),sourceStart:null,sourceEnd:null,block:'',reference:'',audio:'',apiStatus:'未查询',review:x.phonetic?'待确认':'缺少音标',confirmed:false,accepted:false,isPhrase:!!x.isPhrase||/\s/.test(x.word)})}else Object.values(x).forEach(visit)}}visit(data);return arr}
+function importData(src){originalSource=src;items=[];try{const trim=src.trim();if(!trim)throw Error('内容为空');if(trim.startsWith('{')||trim.startsWith('[')){try{const j=parseJSON(trim);if(j.length){items=j;sourceType='json'}else throw Error('JSON 中未找到 word 字段')}catch(e){if(/^\s*(?:const|let|var)\s+/.test(trim)){items=parseJS(trim);sourceType='js'}else throw e}}else if(/^\s*(?:const|let|var)\s+/.test(trim)){items=parseJS(trim);sourceType='js'}else{items=parseCSV(trim);sourceType='csv'}if(!items.length)throw Error('没有识别到词条。请确认数据中包含 word 字段，或 CSV 包含英文列。');items.forEach((x,i)=>{x.index=i;x.originalPhonetic=x.phonetic;x.review=x.phonetic?'待确认':'缺少音标'});page=1;render();$('importMsg').textContent=`已解析 ${items.length} 条；格式：${sourceType.toUpperCase()}`;return true}catch(e){$('importMsg').textContent='解析失败：'+e.message;return false}}
+function norm(s){return String(s||'').toLowerCase().replace(/[\/\[\]\sˈˌ'’`().,;·\-‐]/g,'').replace(/[:ː]/g,':').replace(/ɡ/g,'g').replace(/ɹ/g,'r').replace(/ɫ/g,'l').replace(/ɐ/g,'ə').replace(/ɛ/g,'e').replace(/[ɪɩ]/g,'i').replace(/ʊ/g,'u').replace(/[ɒɔ]/g,'o')}
+function sim(a,b){a=norm(a);b=norm(b);if(!a||!b)return 0;const m=a.length,n=b.length;let prev=new Array(n+1),cur=new Array(n+1);for(let j=0;j<=n;j++)prev[j]=j;for(let i=1;i<=m;i++){cur[0]=i;for(let j=1;j<=n;j++)cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));const t=prev;prev=cur;cur=t}return 1-prev[n]/Math.max(m,n)}
+function simOf(x){const k=(x.phonetic||'')+'\u0001'+(x.reference||'');if(x.simKey!==k){x.simKey=k;x.sim=(x.phonetic&&x.reference)?sim(x.phonetic,x.reference):null}return x.sim}
+function status(x){if(x.apiStatus==='查询失败'||x.apiStatus==='未找到')return 'error';if(!x.reference)return x.phonetic?'pending':'missing';if(!x.phonetic)return 'missing';const s=simOf(x);if(s>=0.999)return x.confirmed?'matched':'pending';return s>=0.75?'close':'diff'}
+function label(x){const s=status(x);return ({error:'查询失败/未找到',missing:'缺少原音标',diff:'差异较大（重点复核）',close:'接近（多为记法差异）',matched:'已核对一致',pending:x.confirmed?'已人工确认':'待确认'})[s]}
+function renderStats(){const n=items.length;let queried=0,diff=0,close=0,missing=0,confirmed=0;for(const x of items){if(x.reference||x.apiStatus==='查询失败'||x.apiStatus==='未找到')queried++;if(!x.phonetic)missing++;if(x.confirmed)confirmed++;const s=status(x);if(s==='diff')diff++;else if(s==='close')close++}$('stats').innerHTML=`<div class="stat"><b>${n}</b>总词条</div><div class="stat"><b>${queried}</b>已查询</div><div class="stat"><b>${diff}</b>差异较大</div><div class="stat"><b>${close}</b>接近</div><div class="stat"><b>${missing}</b>原音标缺失</div><div class="stat"><b>${confirmed}</b>已确认</div>`}
+function visible(){const q=$('search').value.trim().toLowerCase(),f=$('filter').value,onlyMissing=$('onlyMissing').checked,onlyFlags=$('onlyFlags').checked;return items.filter(x=>{const s=status(x);if(q&&!`${x.word} ${x.meaning} ${x.phonetic} ${x.reference}`.toLowerCase().includes(q))return false;if(f==='flag'&&!['diff','close','missing','pending','error'].includes(s))return false;if(f==='missing'&&s!=='missing')return false;if(f==='diff'&&s!=='diff')return false;if(f==='close'&&s!=='close')return false;if(f==='matched'&&s!=='matched')return false;if(f==='error'&&s!=='error')return false;if(onlyMissing&&x.phonetic)return false;if(onlyFlags&&!(s==='diff'||s==='close'||s==='missing'||s==='error'||(s==='pending'&&!x.confirmed)))return false;return true})}
+function sorted(list){const mode=$('sort').value;if(mode==='none')return list;const k=x=>{const s=simOf(x);return s==null?1.1:s};const out=list.slice();out.sort((a,b)=>(k(a)-k(b))*(mode==='simAsc'?1:-1));return out}
+function render(){renderStats();const list=sorted(visible()),pages=Math.max(1,Math.ceil(list.length/pageSize));if(page>pages)page=pages;const slice=list.slice((page-1)*pageSize,page*pageSize);$('tbody').innerHTML=slice.map(x=>{const s=status(x),sv=simOf(x),cl=s==='diff'||s==='missing'||s==='error'?'flag':s==='matched'?'good':'';return `<tr class="${cl}" data-i="${x.index}"><td>${x.index+1}</td><td><div class="word">${esc(x.word)}</div><div class="small">${esc(x.id||'')}</div></td><td><div class="meaning">${esc(x.meaning)}</div></td><td><input class="phonetic-input" data-field="phonetic" value="${esc(x.phonetic)}" placeholder="填写音标"></td><td><span class="ref">${esc(x.reference||'—')}</span>${x.referenceAll&&x.referenceAll.length>1?`<div class="small">其他：${esc(x.referenceAll.slice(1).join(' / '))}</div>`:''}${sv!=null?`<div class="small">相似度 ${(sv*100).toFixed(0)}%</div>`:''}${x.apiMsg?`<div class="small" style="color:#a12828">${esc(x.apiMsg)}</div>`:''}</td><td>${x.audio?`<audio controls preload="none" src="${esc(x.audio)}" onerror="this.style.display='none'"></audio>`:'<span class="small">—</span>'}</td><td><span class="status ${s==='diff'||s==='missing'?'bad':s==='matched'?'ok':s==='error'?'err':s==='close'?'warn':'pending'}">${esc(label(x))}</span><div class="row" style="margin-top:6px;gap:5px"><button data-act="accept" ${!x.reference?'disabled':''}>采用参考</button><button data-act="confirm">${x.confirmed?'取消确认':'确认无误'}</button><button data-act="lookup">重查</button></div></td></tr>`}).join('')||'<tr><td colspan="7" class="small">没有符合筛选条件的词条。</td></tr>';$('visibleCount').textContent=`显示 ${slice.length} 条 / 当前筛选共 ${list.length} 条`; $('pageInfo').textContent=`第 ${page} / ${pages} 页`;$('prev').disabled=page<=1;$('next').disabled=page>=pages}
+const DICT_BASE='https://cdn.jsdelivr.net/gh/open-dict-data/ipa-dict@master/data/';
+const dicts={uk:null,us:null};
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+function setDictStatus(t){$('dictStatus').textContent=t||''}
+function youdaoAudio(word){const type=$('accent').value==='us'?'2':'1';return 'https://dict.youdao.com/dictvoice?audio='+encodeURIComponent(word)+'&type='+type}
+async function loadDict(which){
+  if(dicts[which])return dicts[which];
+  setDictStatus(`正在下载离线词典（${which==='uk'?'英式，约 1.7 MB':'美式，约 3.2 MB'}）…首次加载会被浏览器缓存`);
+  const res=await fetch(DICT_BASE+(which==='uk'?'en_UK.txt':'en_US.txt'));
+  if(!res.ok)throw Error('词典下载失败 HTTP '+res.status);
+  const text=await res.text(),map=new Map();
+  for(const line of text.split('\n')){const t=line.indexOf('\t');if(t<0)continue;const k=line.slice(0,t).trim().toLowerCase();if(!k||map.has(k))continue;map.set(k,line.slice(t+1).split(',').map(s=>s.trim()).filter(Boolean))}
+  dicts[which]=map;
+  setDictStatus(`离线词典已就绪：${which==='uk'?'英式':'美式'} 共 ${map.size} 条词目，此后查询不再联网`);
+  return map;
+}
+async function ensureDict(){const a=$('accent').value;if(a==='us')return[await loadDict('us')];if(a==='uk')return[await loadDict('uk')];const out=[];for(const w of ['uk','us']){try{out.push(await loadDict(w))}catch(e){}}if(!out.length)throw Error('离线词典加载失败，请检查网络，或改用「Free Dictionary API」');return out}
+async function lookupOffline(x){
+  const maps=await ensureDict(),key=x.word.trim().toLowerCase();
+  let refs=null;
+  for(const m of maps){if(m.has(key)){refs=m.get(key);break}}
+  if(!refs){x.apiStatus='未找到';x.apiMsg='离线词典中没有这个词（多为短语或拼接词），请人工判断';x.reference='';x.referenceAll=[];x.audio='';return}
+  x.reference=refs[0];x.referenceAll=refs;x.audio=youdaoAudio(x.word.trim());x.apiStatus='已查询';x.apiMsg='';x.confirmed=false;
+}
+async function fetchJSON(url,tries){
+  let last;
+  for(let i=0;i<tries;i++){
+    try{
+      const res=await fetch(url);
+      if(res.ok)return await res.json();
+      if(res.status===404)throw Error('未找到');
+      last=Error('HTTP '+res.status+(res.status===522||res.status===520||res.status===523?'（接口服务端超时，多为限流）':res.status===429?'（请求过于频繁）':''));
+    }catch(e){last=e}
+    if(i<tries-1)await wait(800*(i+1));
+  }
+  throw last;
+}
+async function lookupOnline(x){
+  const url='https://api.dictionaryapi.dev/api/v2/entries/en/'+encodeURIComponent(x.word.trim());
+  const data=await fetchJSON(url,3);
+  const all=[];
+  for(const entry of data)for(const ph of (entry.phonetics||[])){if(ph.text)all.push({text:ph.text,audio:ph.audio||'',uk:/-uk(?:\.|\/|$)|\/uk\//i.test(ph.audio||''),us:/-us(?:\.|\/|$)|\/us\//i.test(ph.audio||'')})}
+  let chosen;const a=$('accent').value;
+  if(a==='uk')chosen=all.find(v=>v.uk)||all.find(v=>!v.us)||all[0];
+  else if(a==='us')chosen=all.find(v=>v.us)||all.find(v=>!v.uk)||all[0];
+  else chosen=all[0];
+  if(!chosen){x.apiStatus='未找到';x.apiMsg='在线接口没有返回音标';x.reference='';x.referenceAll=[];x.audio='';return}
+  const seen=new Set();
+  x.referenceAll=[...new Set(all.map(v=>v.text))].filter(t=>!seen.has(t)&&seen.add(t));
+  x.reference=chosen.text;x.audio=chosen.audio||youdaoAudio(x.word.trim());x.apiStatus='已查询';x.apiMsg='';x.confirmed=false;
+}
+async function lookup(x,silent){if(!x.word.trim())return;x.apiStatus='查询中';if(!silent)render();try{if($('provider').value==='online')await lookupOnline(x);else await lookupOffline(x)}catch(e){x.apiStatus=e.message==='未找到'?'未找到':'查询失败';x.apiMsg=e.message;x.reference='';x.referenceAll=[];x.audio=''}x.simKey=null;if(!silent)render()}
+$('import').onclick=()=>importData($('source').value);
+$('file').onchange=async e=>{const f=e.target.files[0];if(f){$('source').value=await f.text();importData($('source').value)}};
+$('clear').onclick=()=>{$('source').value='';items=[];originalSource='';render();$('importMsg').textContent='已清空'};
+$('demo').onclick=()=>{$('source').value=`const words_demo = { units: [{ words: [ { id: '1', word: 'ready', phonetic: '/\\'redi/', senses: [{ pos: 'adj.', meaning: '准备好的' }] }, { id: '2', word: 'geography', phonetic: '/d3i\\'pgrəfi/', senses: [{ pos: 'n.', meaning: '地理' }] }, { id: '3', word: 'red scarf', senses: [{ pos: '', meaning: '红领巾' }], isPhrase: true }]}] };`;importData($('source').value)};
+$('search').oninput=()=>{page=1;render()};$('filter').onchange=()=>{page=1;render()};$('sort').onchange=()=>{page=1;render()};$('onlyMissing').onchange=()=>{page=1;render()};$('onlyFlags').onchange=()=>{page=1;render()};$('prev').onclick=()=>{page--;render()};$('next').onclick=()=>{page++;render()};
+$('tbody').addEventListener('input',e=>{const tr=e.target.closest('tr[data-i]');if(!tr)return;const x=items[+tr.dataset.i];if(e.target.dataset.field==='phonetic'){x.phonetic=e.target.value;x.confirmed=false;renderStats()}});
+$('tbody').addEventListener('click',e=>{const b=e.target.closest('button[data-act]');if(!b)return;const tr=b.closest('tr[data-i]'),x=items[+tr.dataset.i];if(b.dataset.act==='accept'&&x.reference){x.phonetic=x.reference;x.accepted=true;x.confirmed=true;x.review='已采用参考音标'}if(b.dataset.act==='confirm'){x.confirmed=!x.confirmed;if(x.confirmed)x.review='已人工确认'}if(b.dataset.act==='lookup')lookup(x);render()});
+$('fetch').onclick=async()=>{
+  if(!items.length)return alert('请先导入词表');
+  stopped=false;$('fetch').disabled=true;$('stop').disabled=false;
+  const list=items.filter(x=>!$('onlyMissing').checked||!x.phonetic);
+  const online=$('provider').value==='online';
+  if(!online){try{await ensureDict()}catch(e){$('fetch').disabled=false;$('stop').disabled=true;setDictStatus('离线词典加载失败：'+e.message+'。可把「参考词典」切换为 Free Dictionary API，或稍后重试。');return}}
+  for(let i=0;i<list.length;i++){
+    if(stopped)break;
+    const x=list[i];
+    await lookup(x,true);
+    $('importMsg').textContent=`查询中 ${i+1}/${list.length}：${x.word}`;
+    if(i%25===24||i===list.length-1)render();
+    if(online)await wait(400);
+  }
+  render();$('fetch').disabled=false;$('stop').disabled=true;
+  $('importMsg').textContent=stopped?'已停止查询':'查询结束；建议把「排序」设为「相似度低 → 高」，从差异较大的词条开始复核。';
+};
+$('stop').onclick=()=>{stopped=true;$('stop').disabled=true};
+$('acceptVisible').onclick=()=>{const list=visible();let n=0;for(const x of list)if(x.reference){x.phonetic=x.reference;x.accepted=true;x.confirmed=true;n++}render();$('importMsg').textContent=`已将 ${n} 条当前可见词条的参考音标写入校对结果`};
+$('resetStatus').onclick=()=>{items.forEach(x=>{x.confirmed=false;x.accepted=false});render()};
+function download(name,content,type){const blob=new Blob([content],{type});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function jsQuote(s,q){return q+s.replace(/\\/g,'\\\\').replace(new RegExp(q,'g'),'\\'+q).replace(/\r/g,'\\r').replace(/\n/g,'\\n')+q}
+function exportJS(){let src=originalSource;if(sourceType!=='js'){alert('当前导入的不是 JS 源文件，请使用 JSON 或 CSV 导出。');return}const edits=[];for(const x of items){if(x.sourceStart==null)continue;const block=src.slice(x.sourceStart,x.sourceEnd);const m=block.match(/(\bphonetic\s*:\s*)(['"`])([\s\S]*?)\2/);if(m){const start=x.sourceStart+m.index;const end=start+m[0].length;const q=m[2];edits.push({start,end,value:m[1]+jsQuote(x.phonetic,q)})}else if(x.phonetic){const wm=block.match(/\bword\s*:\s*(['"`])([\s\S]*?)\1/);if(wm){const insert=x.sourceStart+wm.index+wm[0].length;edits.push({start:insert,end:insert,value:', phonetic: '+jsQuote(x.phonetic,"'")})}}}edits.sort((a,b)=>b.start-a.start);for(const e of edits)src=src.slice(0,e.start)+e.value+src.slice(e.end);return src}
+$('exportSource').onclick=()=>{if(!items.length)return;const out=exportJS();if(out)download('phonetics-corrected.js',out,'text/javascript;charset=utf-8')};
+$('exportJson').onclick=()=>download('phonetics-review.json',JSON.stringify(items.map(x=>({id:x.id,word:x.word,meaning:x.meaning,originalPhonetic:x.originalPhonetic,phonetic:x.phonetic,referencePhonetic:x.reference,source:x.apiStatus,confirmed:x.confirmed,acceptedReference:x.accepted,status:label(x)})),null,2),'application/json;charset=utf-8');
+$('exportCsv').onclick=()=>{const fields=['id','word','meaning','originalPhonetic','phonetic','reference','apiStatus','confirmed'];const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';download('phonetics-review.csv',[fields.join(','),...items.map(x=>fields.map(k=>q(x[k])).join(','))].join('\r\n'), 'text/csv;charset=utf-8')};
+$('saveLocal').onclick=()=>{try{localStorage.setItem('ipaReviewTool',JSON.stringify({source:$('source').value,items,sourceType,originalSource}));$('importMsg').textContent='已保存到此浏览器本地存储。'}catch(e){alert('保存失败：'+e.message)}};
+$('loadLocal').onclick=()=>{try{const d=JSON.parse(localStorage.getItem('ipaReviewTool')||'null');if(!d)return alert('没有找到本地进度');$('source').value=d.source;items=d.items;sourceType=d.sourceType;originalSource=d.originalSource;items.forEach((x,i)=>x.index=i);page=1;render();$('importMsg').textContent=`已恢复 ${items.length} 条本地进度。`}catch(e){alert('恢复失败：'+e.message)}};
+render();
+})();
+</script>
+</body>
+</html>
