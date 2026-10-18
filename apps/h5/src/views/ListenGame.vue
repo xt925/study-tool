@@ -60,6 +60,7 @@ function choose(opt: string) {
     progress.addStars(10) // 连对加分
   } else {
     streak.value = 0
+    if (q) progress.recordWrong(q.id) // 记进错题本
   }
 }
 

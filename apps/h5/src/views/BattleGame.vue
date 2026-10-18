@@ -62,6 +62,8 @@ function choose(opt: string) {
       progress.addStars(30) // KO 奖励
       showReward.value = true
     }
+  } else {
+    progress.recordWrong(question.value.id) // 记进错题本
   }
 }
 </script>

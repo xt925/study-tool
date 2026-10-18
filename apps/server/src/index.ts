@@ -42,6 +42,18 @@ function normalizeProgress(raw: unknown): ProgressState {
     completedUnits: Array.isArray(p.completedUnits) ? p.completedUnits : [],
     speechScores: Array.isArray(p.speechScores) ? p.speechScores : [],
     dailyWords: p.dailyWords ?? {},
+    reviewStates:
+      p.reviewStates &&
+      typeof p.reviewStates === 'object' &&
+      !Array.isArray(p.reviewStates)
+        ? p.reviewStates
+        : {},
+    wrongWords:
+      p.wrongWords &&
+      typeof p.wrongWords === 'object' &&
+      !Array.isArray(p.wrongWords)
+        ? p.wrongWords
+        : {},
   }
 }
 

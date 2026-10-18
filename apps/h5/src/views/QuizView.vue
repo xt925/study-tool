@@ -60,6 +60,8 @@ function choose(option: string) {
   if (ok) {
     correctCount.value += 1
     progress.answerCorrect() // 答对 +10⭐
+  } else {
+    progress.recordWrong(current.value.word.id) // 记进错题本
   }
 }
 

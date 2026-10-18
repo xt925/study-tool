@@ -1,4 +1,5 @@
 export * from './data/words'
 export * from './utils/quiz'
+export * from './utils/review'
 export * from './stores/progress'
 export * from './platform'

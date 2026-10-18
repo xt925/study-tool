@@ -69,6 +69,12 @@ const percent = computed(() =>
 
     <div class="mt-8 flex flex-col gap-3">
       <AppButton @click="router.push('/grades')">📚 开始学习</AppButton>
+      <AppButton color="green" @click="router.push('/review')">
+        🔁 复习{{ progress.dueReviewCount > 0 ? `（${progress.dueReviewCount}）` : '' }}
+      </AppButton>
+      <AppButton color="ghost" @click="router.push('/wrong')">
+        📕 错题本{{ progress.wrongWordCount > 0 ? `（${progress.wrongWordCount}）` : '' }}
+      </AppButton>
       <AppButton color="orange" @click="router.push('/games')"
         >🎮 游戏乐园</AppButton
       >

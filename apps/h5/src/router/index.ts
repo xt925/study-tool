@@ -12,10 +12,12 @@ import LoginView from '@/views/LoginView.vue'
 import MatchGame from '@/views/MatchGame.vue'
 import ProfileView from '@/views/ProfileView.vue'
 import QuizView from '@/views/QuizView.vue'
+import ReviewView from '@/views/ReviewView.vue'
 import SearchView from '@/views/SearchView.vue'
 import TypingGame from '@/views/TypingGame.vue'
 import UnitWordsView from '@/views/UnitWordsView.vue'
 import UnitsView from '@/views/UnitsView.vue'
+import WrongBookView from '@/views/WrongBookView.vue'
 
 export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -56,6 +58,8 @@ export const router = createRouter({
       meta: { title: '练习' },
     },
     { path: '/games', name: 'games', component: GamesView, meta: { title: '游戏乐园' } },
+    { path: '/review', name: 'review', component: ReviewView, meta: { title: '🔁 复习' } },
+    { path: '/wrong', name: 'wrong-book', component: WrongBookView, meta: { title: '📕 错题本' } },
     { path: '/search', name: 'search', component: SearchView, meta: { title: '查单词' } },
     {
       path: '/games/listen',

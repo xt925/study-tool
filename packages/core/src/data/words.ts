@@ -81,6 +81,17 @@ export function getAllWords(): Word[] {
   return grades.flatMap((g) => g.units.flatMap((u) => u.words))
 }
 
+/** 按词 id 全库查找单词（复习队列按 id 取词、展示时用） */
+export function getWordById(wordId: string): Word | undefined {
+  for (const g of grades) {
+    for (const u of g.units) {
+      const word = u.words.find((w) => w.id === wordId)
+      if (word) return word
+    }
+  }
+  return undefined
+}
+
 export interface WordHit {
   word: Word
   gradeId: string

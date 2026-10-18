@@ -122,6 +122,8 @@ function tap(card: Card, kind: 'en' | 'zh') {
     const b = card
     a.wrong = true
     b.wrong = true
+    // 配错时记的是英文卡对应的单词（用户是把释义认错了）
+    progress.recordWrong((pickedKind === 'en' ? a : b).word.id)
     picked.value = null
     lock = true
     setTimeout(() => {
