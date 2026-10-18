@@ -7,8 +7,14 @@ import Fastify from 'fastify'
 import { genSalt, genToken, hashPassword, verifyPassword } from './auth.js'
 import { SPEECH_QUOTA, quotaDay } from './config.js'
 import { db, now } from './db.js'
-import type { ProgressRow, TokenRow, UserRow } from './db.js'
+import type {
+  ParentNoteRow,
+  ProgressRow,
+  TokenRow,
+  UserRow,
+} from './db.js'
 import { readSoeCredentials, signSoeUrl, type SoeEvalMode } from './soe.js'
+import { buildWeekReport } from './report.js'
 
 // 本地开发：存在 .env 就加载（Node 内置，无需 dotenv）；线上走环境变量。
 // 依次尝试 monorepo 根目录和 apps/server 下的 .env，兼容不同 pm2 工作目录
@@ -53,6 +59,16 @@ function normalizeProgress(raw: unknown): ProgressState {
       typeof p.wrongWords === 'object' &&
       !Array.isArray(p.wrongWords)
         ? p.wrongWords
+        : {},
+    streak: typeof p.streak === 'number' ? p.streak : 0,
+    maxStreak: typeof p.maxStreak === 'number' ? p.maxStreak : 0,
+    lastActiveDate:
+      typeof p.lastActiveDate === 'string' ? p.lastActiveDate : '',
+    achievements:
+      p.achievements &&
+      typeof p.achievements === 'object' &&
+      !Array.isArray(p.achievements)
+        ? p.achievements
         : {},
   }
 }
@@ -187,27 +203,102 @@ app.get('/api/admin/summary', { preHandler: requireAuth }, (req, reply) => {
   const rows = db
     .prepare<
       [],
-      { username: string; data: string | null; updated_at: string | null }
+      {
+        id: number
+        username: string
+        role: string
+        data: string | null
+        updated_at: string | null
+      }
     >(
-      `SELECT u.username, p.data, p.updated_at
+      `SELECT u.id, u.username, u.role, p.data, p.updated_at
        FROM users u LEFT JOIN progress p ON p.user_id = u.id
        ORDER BY u.id`,
     )
     .all()
+  const noteStmt = db.prepare<[number], ParentNoteRow>(
+    'SELECT * FROM parent_notes WHERE user_id = ?',
+  )
+  const today = quotaDay()
   return {
     users: rows.map((r) => {
       const p = r.data ? normalizeProgress(JSON.parse(r.data)) : null
+      const note = noteStmt.get(r.id)
+      const dailyGoal = note?.daily_goal ?? 0
       return {
         username: r.username,
+        role: r.role,
         stars: p?.stars ?? 0,
         level: levelFromStars(p?.stars ?? 0),
         learnedCount: p?.learnedWords.length ?? 0,
         completedUnitCount: p?.completedUnits.length ?? 0,
         lastActive: r.updated_at,
+        // 家长端闭环：今日进度 / 目标 / 连续打卡 / 寄语
+        todayWords: p?.dailyWords[today] ?? 0,
+        streak: p?.streak ?? 0,
+        maxStreak: p?.maxStreak ?? 0,
+        dailyGoal,
+        message: note?.message ?? '',
+        // 近 7 天学习报告
+        week: buildWeekReport(p, dailyGoal),
       }
     }),
   }
 })
+
+/** 孩子读取家长给自己设置的目标/寄语 */
+app.get('/api/parent-note', { preHandler: requireAuth }, (req) => {
+  const row = db
+    .prepare<[number], ParentNoteRow>(
+      'SELECT * FROM parent_notes WHERE user_id = ?',
+    )
+    .get(req.user!.id)
+  return {
+    dailyGoal: row?.daily_goal ?? 0,
+    message: row?.message ?? '',
+    updatedAt: row?.updated_at ?? null,
+  }
+})
+
+/** 家长给某个孩子设置每日目标与寄语 */
+app.put(
+  '/api/admin/parent-note/:username',
+  { preHandler: requireAuth },
+  (req, reply) => {
+    if (req.user!.role !== 'admin') {
+      return reply.code(403).send({ error: 'admin only' })
+    }
+    const { username } = req.params as { username?: string }
+    const { dailyGoal, message } = (req.body ?? {}) as {
+      dailyGoal?: unknown
+      message?: unknown
+    }
+    const goal = Math.floor(Number(dailyGoal))
+    const msg = typeof message === 'string' ? message.trim() : ''
+    if (!username || username.length > 64) {
+      return reply.code(400).send({ error: 'username required' })
+    }
+    if (!Number.isInteger(goal) || goal < 0 || goal > 200) {
+      return reply.code(400).send({ error: '每日目标需为 0~200 的整数' })
+    }
+    if (msg.length > 100) {
+      return reply.code(400).send({ error: '寄语最多 100 个字' })
+    }
+    const target = db
+      .prepare<[string], UserRow>('SELECT * FROM users WHERE username = ?')
+      .get(username)
+    if (!target) return reply.code(404).send({ error: '用户不存在' })
+    if (target.role === 'admin') {
+      return reply.code(400).send({ error: '不能给家长账号设置目标' })
+    }
+    const ts = now()
+    db.prepare(
+      `INSERT INTO parent_notes (user_id, daily_goal, message, updated_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET daily_goal = excluded.daily_goal, message = excluded.message, updated_at = excluded.updated_at`,
+    ).run(target.id, goal, msg, ts)
+    return { ok: true, dailyGoal: goal, message: msg, updatedAt: ts }
+  },
+)
 
 function getSpeechUsage(userId: number, wordId: string, date: string) {
   const accountUsed = db

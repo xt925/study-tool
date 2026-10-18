@@ -3,6 +3,12 @@ import { defineStore } from 'pinia'
 import { findUnit } from '../data/words'
 import type { StorageAdapter } from '../platform'
 import {
+  ACHIEVEMENT_IDS,
+  ACHIEVEMENTS,
+  MASTERED_STAGE,
+  type AchievementContext,
+} from '../utils/achievements'
+import {
   backlogReviewState,
   initialReviewState,
   isReviewDue,
@@ -46,6 +52,14 @@ interface ProgressState {
   reviewStates: Record<string, ReviewState>
   /** 错题本：答错过的单词，key 为 wordId */
   wrongWords: Record<string, WrongWordRecord>
+  /** 连续打卡：当前连续天数（截至 lastActiveDate） */
+  streak: number
+  /** 历史最长连续天数 */
+  maxStreak: number
+  /** 最近一次有学习行为的日期（YYYY-MM-DD） */
+  lastActiveDate: string
+  /** 已解锁的成就：成就 id -> 解锁时间（ISO 字符串） */
+  achievements: Record<string, string>
 }
 
 export interface SpeechScoreRecord {
@@ -113,17 +127,102 @@ function normalizeWrongWords(raw: unknown): Record<string, WrongWordRecord> {
   return out
 }
 
+/** 从任意来源读到的数据里挑出合法的成就记录（只认当前定义的成就 id） */
+function normalizeAchievements(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out: Record<string, string> = {}
+  for (const [id, at] of Object.entries(raw as Record<string, unknown>)) {
+    if (ACHIEVEMENT_IDS.has(id) && typeof at === 'string') out[id] = at
+  }
+  return out
+}
+
+/** 从进度中提炼出判断成就用的指标 */
+function contextOf(state: ProgressState): AchievementContext {
+  return {
+    stars: state.stars,
+    learnedCount: state.learnedWords.length,
+    completedUnitCount: state.completedUnits.length,
+    maxStreak: state.maxStreak,
+    masteredCount: Object.values(state.reviewStates).filter(
+      (r) => r.stage >= MASTERED_STAGE,
+    ).length,
+    speechCount: state.speechScores.length,
+  }
+}
+
+/**
+ * 老数据升级时补齐已满足条件的成就（不弹提示，只静默记账）。
+ * 否则一个新功能上线后，老用户要等下一次操作才会一次性解锁一堆历史成就。
+ */
+function backfillAchievements(state: ProgressState): ProgressState {
+  const ctx = contextOf(state)
+  const now = new Date().toISOString()
+  const achievements = { ...state.achievements }
+  let changed = false
+  for (const def of ACHIEVEMENTS) {
+    if (!achievements[def.id] && def.measure(ctx) >= def.goal) {
+      achievements[def.id] = now
+      changed = true
+    }
+  }
+  return changed ? { ...state, achievements } : state
+}
+
 function genDeviceId(): string {
   return typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
     : `dev-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
-function todayKey(): string {
-  const d = new Date()
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/** 把日期格式化成 "YYYY-MM-DD"（本地时区） */
+function dayKey(d = new Date()): string {
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${d.getFullYear()}-${m}-${day}`
+}
+
+function todayKey(): string {
+  return dayKey()
+}
+
+/** 两个 "YYYY-MM-DD" 相差几天（b - a） */
+function dayDiff(a: string, b: string): number {
+  const ta = new Date(`${a}T00:00:00`).getTime()
+  const tb = new Date(`${b}T00:00:00`).getTime()
+  return Math.round((tb - ta) / DAY_MS)
+}
+
+/**
+ * 从每日学习记录推导连续打卡（老数据升级用，让别人已有的学习历史直接变成 streak）。
+ * 返回截至最近活跃日的连续天数，以及历史最长连续天数。
+ */
+function deriveStreak(dailyWords: Record<string, number>): {
+  streak: number
+  maxStreak: number
+  lastActiveDate: string
+} {
+  const days = Object.keys(dailyWords)
+    .filter((date) => (dailyWords[date] ?? 0) > 0)
+    .sort()
+  if (days.length === 0) return { streak: 0, maxStreak: 0, lastActiveDate: '' }
+
+  let maxStreak = 1
+  let run = 1
+  for (let i = 1; i < days.length; i += 1) {
+    run = dayDiff(days[i - 1], days[i]) === 1 ? run + 1 : 1
+    maxStreak = Math.max(maxStreak, run)
+  }
+
+  let streak = 1
+  for (let i = days.length - 1; i > 0; i -= 1) {
+    if (dayDiff(days[i - 1], days[i]) !== 1) break
+    streak += 1
+  }
+
+  return { streak, maxStreak, lastActiveDate: days[days.length - 1] }
 }
 
 let storage: StorageAdapter | null = null
@@ -198,31 +297,52 @@ function loadState(): ProgressState {
     dailyWords: {},
     reviewStates: {},
     wrongWords: {},
+    streak: 0,
+    maxStreak: 0,
+    lastActiveDate: '',
+    achievements: {},
   }
   const adapter = getStorage()
   try {
     const raw = adapter.get(STORAGE_KEY)
     if (!raw) return fallback
     const parsed = JSON.parse(raw) as Partial<ProgressState>
-    return ensureReviewStates({
-      // 旧版本数据没有这些字段，自动补默认值（相当于一次静默迁移）
-      version: parsed.version ?? STATE_VERSION,
-      deviceId: parsed.deviceId ?? genDeviceId(),
-      dirty: parsed.dirty ?? false,
-      stars: typeof parsed.stars === 'number' ? parsed.stars : 0,
-      learnedWords: Array.isArray(parsed.learnedWords)
-        ? parsed.learnedWords
-        : [],
-      completedUnits: Array.isArray(parsed.completedUnits)
-        ? parsed.completedUnits
-        : [],
-      speechScores: Array.isArray(parsed.speechScores)
-        ? trimSpeechScores(parsed.speechScores)
-        : [],
-      dailyWords: parsed.dailyWords ?? {},
-      reviewStates: normalizeReviewStates(parsed.reviewStates),
-      wrongWords: normalizeWrongWords(parsed.wrongWords),
-    })
+    const dailyWords = parsed.dailyWords ?? {}
+    // 老数据没有 streak 字段时，用已有的每日学习记录推导，避免连续记录从 0 开始
+    const hasStreak =
+      typeof parsed.streak === 'number' &&
+      typeof parsed.lastActiveDate === 'string'
+    const derived = hasStreak ? null : deriveStreak(dailyWords)
+    return backfillAchievements(
+      ensureReviewStates({
+        // 旧版本数据没有这些字段，自动补默认值（相当于一次静默迁移）
+        version: parsed.version ?? STATE_VERSION,
+        deviceId: parsed.deviceId ?? genDeviceId(),
+        dirty: parsed.dirty ?? false,
+        stars: typeof parsed.stars === 'number' ? parsed.stars : 0,
+        learnedWords: Array.isArray(parsed.learnedWords)
+          ? parsed.learnedWords
+          : [],
+        completedUnits: Array.isArray(parsed.completedUnits)
+          ? parsed.completedUnits
+          : [],
+        speechScores: Array.isArray(parsed.speechScores)
+          ? trimSpeechScores(parsed.speechScores)
+          : [],
+        dailyWords,
+        reviewStates: normalizeReviewStates(parsed.reviewStates),
+        wrongWords: normalizeWrongWords(parsed.wrongWords),
+        streak: hasStreak ? parsed.streak! : (derived?.streak ?? 0),
+        maxStreak:
+          typeof parsed.maxStreak === 'number'
+            ? parsed.maxStreak
+            : Math.max(derived?.maxStreak ?? 0, derived?.streak ?? 0),
+        lastActiveDate: hasStreak
+          ? parsed.lastActiveDate!
+          : (derived?.lastActiveDate ?? ''),
+        achievements: normalizeAchievements(parsed.achievements),
+      }),
+    )
   } catch {
     return fallback
   }
@@ -266,6 +386,21 @@ export function mergeProgress(
       }
     }
   }
+  // 连续打卡：以最近活跃的一天为准；同一天取较大的连续天数，最长记录取历史最大
+  const lastActiveDate =
+    a.lastActiveDate > b.lastActiveDate ? a.lastActiveDate : b.lastActiveDate
+  const streak =
+    a.lastActiveDate === b.lastActiveDate
+      ? Math.max(a.streak, b.streak)
+      : a.lastActiveDate > b.lastActiveDate
+        ? a.streak
+        : b.streak
+  const maxStreak = Math.max(a.maxStreak, b.maxStreak, streak)
+  // 成就取并集，同一成就保留最早解锁时间
+  const achievements: Record<string, string> = { ...a.achievements }
+  for (const [id, at] of Object.entries(b.achievements)) {
+    if (!achievements[id] || at < achievements[id]) achievements[id] = at
+  }
   return {
     version: Math.max(a.version, b.version),
     deviceId: a.deviceId, // 设备 id 始终以本机为准
@@ -277,6 +412,10 @@ export function mergeProgress(
     dailyWords,
     reviewStates,
     wrongWords: trimWrongWords(wrongWords),
+    streak,
+    maxStreak,
+    lastActiveDate,
+    achievements,
   }
 }
 
@@ -317,11 +456,32 @@ export const useProgressStore = defineStore('progress', {
         .map((r) => r.wordId),
     /** 错题本词数，首页入口展示用 */
     wrongWordCount: (state) => Object.keys(state.wrongWords).length,
+    /** 展示用连续天数：超过一天没学，连续链就断了，显示 0 */
+    currentStreak: (state) => {
+      if (state.lastActiveDate === todayKey()) return state.streak
+      const yesterday = dayKey(new Date(Date.now() - DAY_MS))
+      return state.lastActiveDate === yesterday ? state.streak : 0
+    },
+    /** 今天是否已经有学习行为 */
+    checkedInToday: (state) => state.lastActiveDate === todayKey(),
+    /** 判断成就用的当前指标，成就页展示进度也用 */
+    achievementContext: (state): AchievementContext => contextOf(state),
   },
   actions: {
     persist() {
       this.dirty = true
+      this.evaluateAchievements()
       getStorage().set(STORAGE_KEY, JSON.stringify(this.$state))
+    },
+    /** 按当前进度检查并解锁达成的成就（已解锁的不重复记） */
+    evaluateAchievements() {
+      const ctx = this.achievementContext
+      const now = new Date().toISOString()
+      for (const def of ACHIEVEMENTS) {
+        if (!this.achievements[def.id] && def.measure(ctx) >= def.goal) {
+          this.achievements[def.id] = now
+        }
+      }
     },
     /** 导出当前进度快照（将来上传服务器用）：POST 这个对象即可 */
     exportProgress(): ProgressState {
@@ -337,10 +497,21 @@ export const useProgressStore = defineStore('progress', {
       )
       this.$patch(merged)
       this.dirty = false // 刚同步完，本地无未同步改动
+      this.evaluateAchievements() // 合并来的进度可能满足新成就条件
       getStorage().set(STORAGE_KEY, JSON.stringify(this.$state))
+    },
+    /** 记录今天有学习行为：跨天时推进连续打卡（同一天多次调用只算一次） */
+    touchStreak() {
+      const today = todayKey()
+      if (this.lastActiveDate === today) return
+      const yesterday = dayKey(new Date(Date.now() - DAY_MS))
+      this.streak = this.lastActiveDate === yesterday ? this.streak + 1 : 1
+      this.lastActiveDate = today
+      this.maxStreak = Math.max(this.maxStreak, this.streak)
     },
     addStars(n: number) {
       this.stars += n
+      this.touchStreak()
       this.persist()
     },
     markWordLearned(wordId: string) {
@@ -353,6 +524,7 @@ export const useProgressStore = defineStore('progress', {
       }
       const key = todayKey()
       this.dailyWords[key] = (this.dailyWords[key] ?? 0) + 1
+      this.touchStreak()
       this.persist()
     },
     completeWord(wordId: string) {
@@ -372,6 +544,7 @@ export const useProgressStore = defineStore('progress', {
         correct,
       )
       if (correct) this.stars += 5
+      this.touchStreak()
       this.persist()
     },
     /** 记录一次答错（测验/游戏里判错时调用），进错题本 */

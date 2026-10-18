@@ -12,6 +12,11 @@
     "preview": "npm run preview --workspace apps/h5",
     "dev:server": "npm run dev --workspace apps/server",
     "build:server": "npm run build --workspace apps/server",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "gen:audio": "python -u scripts/generate_audio.py"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.7"
   }
 }

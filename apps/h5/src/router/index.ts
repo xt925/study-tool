@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import AdminView from '@/views/AdminView.vue'
+import AchievementsView from '@/views/AchievementsView.vue'
 import BattleGame from '@/views/BattleGame.vue'
 import ChangePasswordView from '@/views/ChangePasswordView.vue'
 import GamesView from '@/views/GamesView.vue'
@@ -60,6 +61,7 @@ export const router = createRouter({
     { path: '/games', name: 'games', component: GamesView, meta: { title: '游戏乐园' } },
     { path: '/review', name: 'review', component: ReviewView, meta: { title: '🔁 复习' } },
     { path: '/wrong', name: 'wrong-book', component: WrongBookView, meta: { title: '📕 错题本' } },
+    { path: '/achievements', name: 'achievements', component: AchievementsView, meta: { title: '🏆 成就' } },
     { path: '/search', name: 'search', component: SearchView, meta: { title: '查单词' } },
     {
       path: '/games/listen',

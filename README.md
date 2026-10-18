@@ -24,6 +24,8 @@ npm run build          # 构建 H5（vue-tsc + vite），产物在 apps/h5/dist
 npm run preview        # 预览 H5 构建产物
 npm run dev:server     # 启动服务端（tsx watch，默认 127.0.0.1:3000）
 npm run build:server   # 服务端类型检查（tsc --noEmit）
+npm test               # 运行 Vitest 单元测试（复习/成就/进度 store/周报统计）
+npm run test:watch     # 测试监听模式
 npm run gen:audio      # 重新生成单词/例句音频（需要 python + edge-tts）
 ```
 
@@ -77,7 +79,9 @@ npm run dev
 | `POST /api/login` | `{username, password}` → `{token, role}`（scrypt 校验，Bearer token 认证） |
 | `GET /api/progress` | 返回本人进度（无记录返回 `null`） |
 | `POST /api/progress` | `{progress}` → 用 core 的 `mergeProgress` 与服务器数据合并后写库，返回合并结果 |
-| `GET /api/admin/summary` | 仅 admin：所有用户的星星/等级/已学单词/完成单元/最近活跃 |
+| `GET /api/admin/summary` | 仅 admin：所有用户的星星/等级/已学单词/完成单元/最近活跃，以及今日进度、连续打卡和近 7 天周报 |
+| `GET /api/parent-note` | 读取家长给自己设置的每日目标与寄语（学生端首页展示） |
+| `PUT /api/admin/parent-note/:username` | 仅 admin：给孩子设置每日目标与寄语 |
 
 ### 部署到服务器
 
@@ -106,8 +110,10 @@ location /english-study/api/ {
 
 ## packages/core（@study/core）
 
-- `data/words`：`grades` / `Grade` / `Unit` / `Word` / `getGrade` / `getUnit` / `getAllWords`
+- `data/words`：`grades` / `Grade` / `Unit` / `Word` / `getGrade` / `getUnit` / `getAllWords` / `getWordById`
 - `utils/quiz`：`shuffle` / `generateQuiz` / `Question` / `QuestionType`
+- `utils/review`：间隔复习调度（`ReviewState` / `REVIEW_INTERVALS_DAYS` / `initialReviewState` / `nextReviewState` / `isReviewDue`）
+- `utils/achievements`：成就定义与判断指标（`ACHIEVEMENTS` / `AchievementDef` / `MASTERED_STAGE`）
 - `stores/progress`：Pinia store，**必须先 `initStorage(adapter)` 注入存储适配器**再使用 `useProgressStore`
 - `platform`：`Platform` / `StorageAdapter` / `SpeakAdapter` / `RecordAdapter` 接口
 

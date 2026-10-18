@@ -22,13 +22,45 @@ export class ApiError extends Error {
   }
 }
 
+export interface WeeklyReport {
+  /** 最近 7 天，从早到晚 */
+  days: { date: string; words: number }[]
+  /** 7 天累计学习单词数 */
+  totalWords: number
+  /** 7 天中有学习的天数 */
+  activeDays: number
+  /** 7 天内复习过的单词数 */
+  reviewedWords: number
+  /** 7 天内跟读评分次数 */
+  speechCount: number
+  /** 7 天中达到每日目标的天数（未设目标时为 0） */
+  goalMetDays: number
+}
+
 export interface AdminSummaryItem {
   username: string
+  role: string
   stars: number
   level: number
   learnedCount: number
   completedUnitCount: number
   lastActive: string | null
+  /** 今日已学单词数（按北京时间日切分） */
+  todayWords: number
+  streak: number
+  maxStreak: number
+  /** 家长设置的每日目标，0 = 未设置 */
+  dailyGoal: number
+  /** 家长寄语 */
+  message: string
+  /** 近 7 天学习报告 */
+  week: WeeklyReport
+}
+
+export interface ParentNote {
+  dailyGoal: number
+  message: string
+  updatedAt: string | null
 }
 
 export function getAuth(): Auth | null {
@@ -129,6 +161,33 @@ export async function getAdminSummary(): Promise<AdminSummaryItem[]> {
     auth: true,
   })
   return res.users
+}
+
+/** 读取家长给自己设置的目标与寄语（学生端首页展示） */
+export function getParentNote(): Promise<ParentNote> {
+  return request<ParentNote>('/parent-note', { auth: true })
+}
+
+/** 家长给某个孩子设置每日目标与寄语 */
+export async function setParentNote(
+  username: string,
+  dailyGoal: number,
+  message: string,
+): Promise<ParentNote> {
+  const res = await request<{
+    dailyGoal: number
+    message: string
+    updatedAt: string
+  }>(`/admin/parent-note/${encodeURIComponent(username)}`, {
+    method: 'PUT',
+    body: { dailyGoal, message },
+    auth: true,
+  })
+  return {
+    dailyGoal: res.dailyGoal,
+    message: res.message,
+    updatedAt: res.updatedAt,
+  }
 }
 
 export interface SpeechToken {

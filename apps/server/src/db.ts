@@ -42,6 +42,13 @@ CREATE TABLE IF NOT EXISTS speech_attempts (
 );
 CREATE INDEX IF NOT EXISTS speech_attempts_daily
   ON speech_attempts(user_id, quota_day, word_id);
+-- 家长给孩子设置的每日目标与寄语，孩子登录后在高亮展示
+CREATE TABLE IF NOT EXISTS parent_notes (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id),
+  daily_goal INTEGER NOT NULL DEFAULT 0,
+  message TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL
+);
 `)
 
 export interface UserRow {
@@ -62,6 +69,13 @@ export interface TokenRow {
 export interface ProgressRow {
   user_id: number
   data: string
+  updated_at: string
+}
+
+export interface ParentNoteRow {
+  user_id: number
+  daily_goal: number
+  message: string
   updated_at: string
 }
 
