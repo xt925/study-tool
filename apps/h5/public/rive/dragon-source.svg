@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <g id="dragon">
+    <ellipse id="shadow" cx="100" cy="184" rx="46" ry="9" fill="#0f172a" opacity="0.08" />
+    <g id="tail">
+      <path d="M138 158 C166 160 177 146 174 132" fill="none" stroke="#e85d3f" stroke-width="12" stroke-linecap="round" />
+    </g>
+    <g id="flame">
+      <path d="M170 132 C158 126 160 110 173 98 C180 110 187 118 181 128 C179 132 176 134 170 132 Z" fill="#fbbf24" />
+      <path d="M172 129 C165 125 166 115 174 107 C178 115 182 120 179 126 C178 129 176 130 172 129 Z" fill="#f97316" />
+      <path d="M173 126 C169 123 170 118 175 113 C177 118 179 121 177 124 C176 126 175 127 173 126 Z" fill="#ef4444" />
+    </g>
+    <g id="body">
+      <ellipse cx="100" cy="151" rx="41" ry="33" fill="#f4774f" />
+      <ellipse cx="100" cy="157" rx="26" ry="22" fill="#fff1d9" />
+      <ellipse cx="84" cy="181" rx="14" ry="7" fill="#fff1d9" />
+      <ellipse cx="116" cy="181" rx="14" ry="7" fill="#fff1d9" />
+      <ellipse cx="67" cy="152" rx="9" ry="13" fill="#e85d3f" transform="rotate(18 67 152)" />
+      <ellipse cx="133" cy="152" rx="9" ry="13" fill="#e85d3f" transform="rotate(-18 133 152)" />
+    </g>
+    <g id="head">
+      <path d="M74 62 C69 46 73 34 83 30 C89 28 91 34 87 40 C83 47 81 54 83 60 Z" fill="#fbbf24" />
+      <path d="M126 62 C131 46 127 34 117 30 C111 28 109 34 113 40 C117 47 119 54 117 60 Z" fill="#fbbf24" />
+      <circle cx="100" cy="96" r="45" fill="#f4774f" />
+      <g id="eye-left">
+        <ellipse cx="82" cy="96" rx="7" ry="8.5" fill="#3d2b2b" />
+        <circle cx="84.4" cy="92.6" r="2.4" fill="#ffffff" />
+        <circle cx="79.8" cy="100" r="1.2" fill="#ffffff" opacity="0.85" />
+      </g>
+      <g id="eye-right">
+        <ellipse cx="118" cy="96" rx="7" ry="8.5" fill="#3d2b2b" />
+        <circle cx="120.4" cy="92.6" r="2.4" fill="#ffffff" />
+        <circle cx="115.8" cy="100" r="1.2" fill="#ffffff" opacity="0.85" />
+      </g>
+      <circle id="blush-left" cx="66" cy="112" r="7" fill="#ff9db4" opacity="0.75" />
+      <circle id="blush-right" cx="134" cy="112" r="7" fill="#ff9db4" opacity="0.75" />
+      <ellipse cx="100" cy="116" rx="22" ry="14" fill="#fff1d9" />
+      <circle cx="94" cy="113" r="1.6" fill="#b06a4a" />
+      <circle cx="106" cy="113" r="1.6" fill="#b06a4a" />
+      <path id="mouth" d="M94 120 q6 5 12 0" stroke="#b06a4a" stroke-width="2.4" fill="none" stroke-linecap="round" />
+    </g>
+    <g id="sparks" fill="#fbbf24">
+      <circle cx="156" cy="104" r="2.5" opacity="0.9" />
+      <circle cx="168" cy="84" r="2" opacity="0.7" />
+      <circle cx="184" cy="110" r="1.8" opacity="0.6" />
+    </g>
+  </g>
+</svg>

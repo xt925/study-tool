@@ -4,6 +4,7 @@ import AdminView from '@/views/AdminView.vue'
 import AchievementsView from '@/views/AchievementsView.vue'
 import BattleGame from '@/views/BattleGame.vue'
 import ChangePasswordView from '@/views/ChangePasswordView.vue'
+import PetView from '@/views/PetView.vue'
 import GamesView from '@/views/GamesView.vue'
 import GradesView from '@/views/GradesView.vue'
 import HomeView from '@/views/HomeView.vue'
@@ -62,6 +63,7 @@ export const router = createRouter({
     { path: '/review', name: 'review', component: ReviewView, meta: { title: '🔁 复习' } },
     { path: '/wrong', name: 'wrong-book', component: WrongBookView, meta: { title: '📕 错题本' } },
     { path: '/achievements', name: 'achievements', component: AchievementsView, meta: { title: '🏆 成就' } },
+    { path: '/pet', name: 'pet', component: PetView, meta: { title: '🐾 我的宠物' } },
     { path: '/search', name: 'search', component: SearchView, meta: { title: '查单词' } },
     {
       path: '/games/listen',
