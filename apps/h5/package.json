@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@rive-app/canvas": "^2.45.0",
     "@study/core": "*",
     "@tailwindcss/vite": "^4.3.3",
     "pinia": "^4.0.3",

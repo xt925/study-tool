@@ -1,7 +1,7 @@
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { levelFromStars, mergeProgress } from '@study/core'
+import { levelFromStars, mergeProgress, normalizePet } from '@study/core'
 import Fastify from 'fastify'
 
 import { genSalt, genToken, hashPassword, verifyPassword } from './auth.js'
@@ -44,6 +44,16 @@ function normalizeProgress(raw: unknown): ProgressState {
     deviceId: typeof p.deviceId === 'string' ? p.deviceId : 'server',
     dirty: false,
     stars: typeof p.stars === 'number' ? p.stars : 0,
+    spentStars: typeof p.spentStars === 'number' ? p.spentStars : 0,
+    pet: normalizePet(p.pet),
+    ownedPets: Array.isArray(p.ownedPets) ? p.ownedPets : [],
+    ownedOutfits: Array.isArray(p.ownedOutfits) ? p.ownedOutfits : [],
+    equippedOutfits:
+      p.equippedOutfits &&
+      typeof p.equippedOutfits === 'object' &&
+      !Array.isArray(p.equippedOutfits)
+        ? p.equippedOutfits
+        : {},
     learnedWords: Array.isArray(p.learnedWords) ? p.learnedWords : [],
     completedUnits: Array.isArray(p.completedUnits) ? p.completedUnits : [],
     speechScores: Array.isArray(p.speechScores) ? p.speechScores : [],

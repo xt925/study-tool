@@ -2,7 +2,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
+import { OUTFITS, petSpeech } from '@study/core'
 import AppButton from '@/components/AppButton.vue'
+import PetAvatar from '@/components/PetAvatar.vue'
 import ProgressDots from '@/components/ProgressDots.vue'
 import { levelProgress, useProgressStore } from '@/stores/progress'
 import { getParentNote, isLoggedIn, type ParentNote } from '@/utils/api'
@@ -14,10 +16,25 @@ const percent = computed(() =>
   Math.min(100, Math.round(levelProgress(progress.stars) * 100)),
 )
 
+const pet = computed(() => progress.pet)
+const petTitle = computed(() =>
+  pet.value ? `${pet.value.name} · Lv.${pet.value.level}` : '领养一只学习伙伴',
+)
+const petSubtitle = computed(() =>
+  pet.value ? petSpeech(pet.value) : '学习赚星星，喂养你的专属小宠物',
+)
+const outfitEmojis = computed(() =>
+  Object.values(progress.equippedOutfits)
+    .map((id) => OUTFITS.find((item) => item.id === id)?.emoji ?? '')
+    .join(''),
+)
+
 // 家长设置的目标与寄语（未登录或未设置时为 null）
 const parentNote = ref<ParentNote | null>(null)
 
 onMounted(async () => {
+  // 首页展示宠物状态前先结算离线衰减
+  progress.tickPet()
   if (!isLoggedIn()) return
   try {
     const note = await getParentNote()
@@ -96,6 +113,53 @@ const goalReached = computed(() => {
       </div>
     </section>
 
+    <!-- 宠物：状态一眼可见，点进去陪伴 -->
+    <button
+      class="mt-4 w-full overflow-hidden rounded-3xl bg-white text-left shadow-sm transition active:scale-[0.99]"
+      @click="router.push('/pet')"
+    >
+      <div class="flex items-center gap-2 bg-gradient-to-r from-rose-100 via-amber-50 to-white p-3">
+        <PetAvatar
+          v-if="pet"
+          :type="pet.type"
+          :level="pet.level"
+          :mood="pet.mood"
+          :size="86"
+          class="shrink-0"
+        />
+        <div
+          v-else
+          class="flex h-[86px] w-[86px] shrink-0 items-center justify-center text-4xl"
+        >
+          🥚
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-base font-extrabold text-slate-800">
+            {{ petTitle }}
+            <span v-if="outfitEmojis" class="ml-0.5 text-sm">{{ outfitEmojis }}</span>
+          </p>
+          <p class="mt-0.5 truncate text-xs text-slate-400">{{ petSubtitle }}</p>
+          <div v-if="pet" class="mt-2 flex items-center gap-1.5">
+            <span class="text-[11px]">🍗</span>
+            <div class="h-1.5 w-14 overflow-hidden rounded-full bg-white/90">
+              <div
+                class="h-full rounded-full bg-orange-400 transition-all"
+                :style="{ width: `${pet.fullness}%` }"
+              ></div>
+            </div>
+            <span class="text-[11px]">💗</span>
+            <div class="h-1.5 w-14 overflow-hidden rounded-full bg-white/90">
+              <div
+                class="h-full rounded-full bg-rose-400 transition-all"
+                :style="{ width: `${pet.mood}%` }"
+              ></div>
+            </div>
+          </div>
+        </div>
+        <span class="text-slate-300">›</span>
+      </div>
+    </button>
+
     <!-- 家长寄语 / 每日目标 -->
     <section
       v-if="parentNote"
@@ -136,9 +200,13 @@ const goalReached = computed(() => {
             >Lv.{{ progress.level }}</span
           >
         </div>
-        <div class="flex items-center gap-1 text-lg font-bold text-amber-500">
-          <span>⭐</span>
-          <span>{{ progress.stars }}</span>
+        <div class="text-right">
+          <div class="flex items-baseline justify-end gap-1 text-lg font-bold text-amber-500">
+            <span>⭐</span>
+            <span>{{ progress.coins }}</span>
+            <span class="text-[11px] font-medium text-slate-400">可用</span>
+          </div>
+          <p class="text-[11px] text-slate-400">累计星星 {{ progress.stars }}</p>
         </div>
       </div>
       <div class="mt-3 h-3 overflow-hidden rounded-full bg-slate-100">

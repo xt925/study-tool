@@ -3,11 +3,31 @@ import { defineStore } from 'pinia'
 import { findUnit } from '../data/words'
 import type { StorageAdapter } from '../platform'
 import {
+  DEFAULT_OWNED_OUTFITS,
+  findOutfit,
+  type OutfitSlot,
+} from '../utils/outfits'
+import {
   ACHIEVEMENT_IDS,
   ACHIEVEMENTS,
   MASTERED_STAGE,
   type AchievementContext,
 } from '../utils/achievements'
+import {
+  PET_FOODS,
+  PET_PLAYS,
+  PET_STAT_MAX,
+  PET_WELCOME_STARS,
+  applyPetDecay,
+  createPet,
+  findPetType,
+  gainPetExp,
+  mergePet,
+  normalizePet,
+  type PetActionResult,
+  type PetState,
+  type PetType,
+} from '../utils/pet'
 import {
   backlogReviewState,
   initialReviewState,
@@ -42,7 +62,18 @@ interface ProgressState {
   deviceId: string
   /** 本地是否有未同步到服务器的改动 */
   dirty: boolean
+  /** 累计获得的总星星（只增不减，宠物消费不会影响它） */
   stars: number
+  /** 累计在宠物上消耗的星星（只增），可用星星 = stars - spentStars */
+  spentStars: number
+  /** 当前伙伴；null 表示还没领养 */
+  pet: PetState | null
+  /** 已解锁的宠物形象 */
+  ownedPets: PetType[]
+  /** 已拥有的服装 id */
+  ownedOutfits: string[]
+  /** 当前穿戴：槽位 -> 服装 id */
+  equippedOutfits: Partial<Record<OutfitSlot, string>>
   learnedWords: string[]
   completedUnits: string[]
   speechScores: SpeechScoreRecord[]
@@ -137,6 +168,38 @@ function normalizeAchievements(raw: unknown): Record<string, string> {
   return out
 }
 
+/** 从任意来源读到的数据里挑出已解锁的宠物形象（只认当前定义的宠物） */
+function normalizeOwnedPets(raw: unknown, pet: PetState | null): PetType[] {
+  const list = Array.isArray(raw)
+    ? raw.filter((item): item is PetType => typeof item === 'string' && !!findPetType(item))
+    : []
+  const owned = [...new Set(list)]
+  if (pet && !owned.includes(pet.type)) owned.push(pet.type)
+  return owned
+}
+
+/** 已拥有的服装：过滤未知 id，并保证初始赠送的服装一定在列表里 */
+function normalizeOwnedOutfits(raw: unknown): string[] {
+  const list = Array.isArray(raw)
+    ? raw.filter((item): item is string => typeof item === 'string' && !!findOutfit(item))
+    : []
+  return [...new Set([...DEFAULT_OWNED_OUTFITS, ...list])]
+}
+
+/** 当前穿戴：只保留槽位和服装匹配的合法记录 */
+function normalizeEquippedOutfits(
+  raw: unknown,
+): Partial<Record<OutfitSlot, string>> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out: Partial<Record<OutfitSlot, string>> = {}
+  for (const [slot, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value !== 'string') continue
+    const def = findOutfit(value)
+    if (def && def.slot === slot) out[def.slot] = def.id
+  }
+  return out
+}
+
 /** 从进度中提炼出判断成就用的指标 */
 function contextOf(state: ProgressState): AchievementContext {
   return {
@@ -193,6 +256,22 @@ function dayDiff(a: string, b: string): number {
   const ta = new Date(`${a}T00:00:00`).getTime()
   const tb = new Date(`${b}T00:00:00`).getTime()
   return Math.round((tb - ta) / DAY_MS)
+}
+
+/**
+ * 照顾行为（喂食/陪玩）顺带完成当日陪伴打卡：
+ * 当天第一次照顾就算打卡，不设独立按钮，连续天数与奖励在这里结算。
+ */
+function applyDailyCheckIn(pet: PetState): { pet: PetState; earned: number } {
+  const today = todayKey()
+  if (pet.lastCheckInDate === today) return { pet, earned: 0 }
+  const yesterday = dayKey(new Date(Date.now() - DAY_MS))
+  const streak = pet.lastCheckInDate === yesterday ? pet.checkInStreak + 1 : 1
+  return {
+    pet: { ...pet, lastCheckInDate: today, checkInStreak: streak },
+    // 连续 7 天额外奖励
+    earned: streak % 7 === 0 ? 10 : 5,
+  }
 }
 
 /**
@@ -291,6 +370,11 @@ function loadState(): ProgressState {
     deviceId: genDeviceId(),
     dirty: false,
     stars: 0,
+    spentStars: 0,
+    pet: null,
+    ownedPets: [],
+    ownedOutfits: [...DEFAULT_OWNED_OUTFITS],
+    equippedOutfits: {},
     learnedWords: [],
     completedUnits: [],
     speechScores: [],
@@ -313,6 +397,7 @@ function loadState(): ProgressState {
       typeof parsed.streak === 'number' &&
       typeof parsed.lastActiveDate === 'string'
     const derived = hasStreak ? null : deriveStreak(dailyWords)
+    const petState = normalizePet(parsed.pet)
     return backfillAchievements(
       ensureReviewStates({
         // 旧版本数据没有这些字段，自动补默认值（相当于一次静默迁移）
@@ -320,6 +405,12 @@ function loadState(): ProgressState {
         deviceId: parsed.deviceId ?? genDeviceId(),
         dirty: parsed.dirty ?? false,
         stars: typeof parsed.stars === 'number' ? parsed.stars : 0,
+        spentStars:
+          typeof parsed.spentStars === 'number' ? Math.max(0, parsed.spentStars) : 0,
+        pet: petState,
+        ownedPets: normalizeOwnedPets(parsed.ownedPets, petState),
+        ownedOutfits: normalizeOwnedOutfits(parsed.ownedOutfits),
+        equippedOutfits: normalizeEquippedOutfits(parsed.equippedOutfits),
         learnedWords: Array.isArray(parsed.learnedWords)
           ? parsed.learnedWords
           : [],
@@ -401,11 +492,39 @@ export function mergeProgress(
   for (const [id, at] of Object.entries(b.achievements)) {
     if (!achievements[id] || at < achievements[id]) achievements[id] = at
   }
+  // 宠物：等级取高、状态取最近结算的一方；已解锁形象取并集
+  // 旧数据可能没有这些字段，这里做一次兜底
+  const pet = mergePet(a.pet ?? null, b.pet ?? null)
+  const ownedPets = [
+    ...new Set([...(a.ownedPets ?? []), ...(b.ownedPets ?? [])]),
+  ]
+  if (pet && !ownedPets.includes(pet.type)) ownedPets.push(pet.type)
+  // 服装：拥有列表取并集；穿戴偏好本机优先，其次保留服务器上已有的槽位
+  const ownedOutfits = [
+    ...new Set([
+      ...DEFAULT_OWNED_OUTFITS,
+      ...(a.ownedOutfits ?? []),
+      ...(b.ownedOutfits ?? []),
+    ]),
+  ]
+  const equippedOutfits = normalizeEquippedOutfits({
+    ...(b.equippedOutfits ?? {}),
+    ...(a.equippedOutfits ?? {}),
+  })
+  for (const [slot, id] of Object.entries(equippedOutfits)) {
+    if (!ownedOutfits.includes(id)) delete equippedOutfits[slot as OutfitSlot]
+  }
   return {
     version: Math.max(a.version, b.version),
     deviceId: a.deviceId, // 设备 id 始终以本机为准
     dirty: a.dirty || b.dirty,
     stars: Math.max(a.stars, b.stars),
+    // 消费额同样只增，取大值可避免同步后已花掉的星星被“退回”
+    spentStars: Math.max(a.spentStars ?? 0, b.spentStars ?? 0),
+    pet,
+    ownedPets,
+    ownedOutfits,
+    equippedOutfits,
     learnedWords: [...new Set([...a.learnedWords, ...b.learnedWords])],
     completedUnits: [...new Set([...a.completedUnits, ...b.completedUnits])],
     speechScores: trimSpeechScores([...speechScores.values()]),
@@ -423,6 +542,8 @@ export const useProgressStore = defineStore('progress', {
   state: (): ProgressState => loadState(),
   getters: {
     level: (state) => levelFromStars(state.stars),
+    /** 可用星星 = 累计星星 - 宠物消费；总积分仍然保留在 stars 里 */
+    coins: (state) => Math.max(0, state.stars - state.spentStars),
     todayWordCount: (state) => state.dailyWords[todayKey()] ?? 0,
     isLearnedWord: (state) => (wordId: string) =>
       state.learnedWords.includes(wordId),
@@ -590,6 +711,167 @@ export const useProgressStore = defineStore('progress', {
         this.addStars(30)
       } else {
         this.persist()
+      }
+    },
+    /** 结算宠物离线衰减（启动、进入宠物页、互动前调用） */
+    tickPet() {
+      if (!this.pet) return
+      const next = applyPetDecay(this.pet)
+      if (next !== this.pet) {
+        this.pet = next
+        this.persist()
+      }
+    },
+    /** 第一次领养（免费），之后想换形象需要用星星解锁 */
+    adoptPet(type: PetType) {
+      if (this.pet) return false
+      const def = findPetType(type)
+      if (!def) return false
+      this.pet = createPet(def.type, def.defaultName)
+      if (!this.ownedPets.includes(def.type)) this.ownedPets.push(def.type)
+      // 见面礼：保证第一次进宠物页就能喂一顿
+      this.stars += PET_WELCOME_STARS
+      this.persist()
+      return true
+    },
+    /** 在已解锁的形象之间切换（成长等级共用） */
+    switchPet(type: PetType) {
+      if (!this.pet || !this.ownedPets.includes(type)) return false
+      const prevDef = findPetType(this.pet.type)
+      const nextDef = findPetType(type)
+      if (!nextDef) return false
+      // 没改过名时，跟着新伙伴换成默认名字；自己取的名字则保留
+      this.pet = {
+        ...this.pet,
+        type,
+        name:
+          this.pet.name === prevDef?.defaultName
+            ? nextDef.defaultName
+            : this.pet.name,
+      }
+      this.persist()
+      return true
+    },
+    /** 用可用星星解锁新伙伴，并立即切换过去 */
+    unlockPet(type: PetType): boolean {
+      const def = findPetType(type)
+      if (!def || this.ownedPets.includes(def.type)) return false
+      if (this.coins < def.unlockCost) return false
+      this.spentStars += def.unlockCost
+      this.ownedPets.push(def.type)
+      if (this.pet) {
+        const prevDef = findPetType(this.pet.type)
+        this.pet = {
+          ...this.pet,
+          type: def.type,
+          name:
+            this.pet.name === prevDef?.defaultName
+              ? def.defaultName
+              : this.pet.name,
+        }
+      } else {
+        this.pet = createPet(def.type, def.defaultName)
+      }
+      this.persist()
+      return true
+    },
+    renamePet(name: string) {
+      const trimmed = name.trim().slice(0, 12)
+      if (!this.pet || !trimmed) return
+      this.pet.name = trimmed
+      this.persist()
+    },
+    /** 购买服装：扣可用星星、加入衣橱并立即穿上 */
+    buyOutfit(outfitId: string): boolean {
+      const def = findOutfit(outfitId)
+      if (!def || this.ownedOutfits.includes(def.id)) return false
+      if (this.coins < def.cost) return false
+      this.spentStars += def.cost
+      this.ownedOutfits.push(def.id)
+      this.equippedOutfits[def.slot] = def.id
+      this.persist()
+      return true
+    },
+    /** 穿上已拥有的服装；同一槽位会自动替换 */
+    equipOutfit(outfitId: string): boolean {
+      const def = findOutfit(outfitId)
+      if (!def || !this.ownedOutfits.includes(def.id)) return false
+      this.equippedOutfits[def.slot] = def.id
+      this.persist()
+      return true
+    },
+    /** 脱下某个槽位的服装 */
+    unequipOutfit(slot: OutfitSlot) {
+      if (!this.equippedOutfits[slot]) return
+      delete this.equippedOutfits[slot]
+      this.persist()
+    },
+    /** 喂食：消耗可用星星，提升饱食度/心情/经验 */
+    feedPet(foodId: string): PetActionResult {
+      const food = PET_FOODS.find((item) => item.id === foodId)
+      if (!food) return { ok: false, reason: '没有这种食物' }
+      this.tickPet()
+      if (!this.pet) return { ok: false, reason: '还没有领养宠物' }
+      if (this.coins < food.cost) {
+        return { ok: false, reason: '星星不够啦，去学习赚一点吧' }
+      }
+      this.spentStars += food.cost
+      const pet = this.pet
+      const gained = gainPetExp(
+        {
+          ...pet,
+          fullness: Math.min(PET_STAT_MAX, pet.fullness + food.fullness),
+          mood: Math.min(PET_STAT_MAX, pet.mood + food.mood),
+          totalFeeds: pet.totalFeeds + 1,
+          lastTickAt: new Date().toISOString(),
+        },
+        food.exp,
+      )
+      const checkIn = applyDailyCheckIn(gained.pet)
+      this.pet = checkIn.pet
+      if (checkIn.earned > 0) this.stars += checkIn.earned
+      this.persist()
+      return {
+        ok: true,
+        levelUp: gained.levelsGained > 0,
+        level: checkIn.pet.level,
+        checkedIn: checkIn.earned > 0,
+        earned: checkIn.earned,
+        streak: checkIn.pet.checkInStreak,
+      }
+    },
+    /** 玩耍：消耗可用星星，提升心情/经验，会消耗一点饱食度 */
+    playWithPet(playId: string): PetActionResult {
+      const play = PET_PLAYS.find((item) => item.id === playId)
+      if (!play) return { ok: false, reason: '没有这种玩法' }
+      this.tickPet()
+      if (!this.pet) return { ok: false, reason: '还没有领养宠物' }
+      if (this.coins < play.cost) {
+        return { ok: false, reason: '星星不够啦，去学习赚一点吧' }
+      }
+      this.spentStars += play.cost
+      const pet = this.pet
+      const gained = gainPetExp(
+        {
+          ...pet,
+          fullness: Math.max(0, pet.fullness + play.fullness),
+          mood: Math.min(PET_STAT_MAX, pet.mood + play.mood),
+          totalPlays: pet.totalPlays + 1,
+          lastTickAt: new Date().toISOString(),
+        },
+        play.exp,
+      )
+      const checkIn = applyDailyCheckIn(gained.pet)
+      this.pet = checkIn.pet
+      if (checkIn.earned > 0) this.stars += checkIn.earned
+      this.persist()
+      return {
+        ok: true,
+        levelUp: gained.levelsGained > 0,
+        level: checkIn.pet.level,
+        checkedIn: checkIn.earned > 0,
+        earned: checkIn.earned,
+        streak: checkIn.pet.checkInStreak,
       }
     },
   },
