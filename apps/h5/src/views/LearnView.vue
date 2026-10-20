@@ -6,7 +6,7 @@ import AppButton from '@/components/AppButton.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import ProgressDots from '@/components/ProgressDots.vue'
 import RewardOverlay from '@/components/RewardOverlay.vue'
-import { getUnit } from '@study/core'
+import { MAX_FAVORITES, getUnit } from '@study/core'
 import { useProgressStore } from '@/stores/progress'
 import { speak, stopSpeak } from '@/utils/audio'
 import { ApiError, getSpeechQuota, syncNow, type SpeechQuota } from '@/utils/api'
@@ -36,6 +36,22 @@ const index = ref(
 )
 const current = computed(() => unit.value?.words[index.value])
 const showComplete = ref(false)
+
+const isFavorite = computed(() =>
+  current.value ? progress.isFavoriteWord(current.value.id) : false,
+)
+
+function toggleFavorite() {
+  const word = current.value
+  if (!word) return
+  if (progress.isFavoriteWord(word.id)) {
+    progress.removeFavorites([word.id])
+    return
+  }
+  if (!progress.addFavorite(word.id)) {
+    alert(`收藏夹最多 ${MAX_FAVORITES} 个单词，先去「我的收藏」清理一下吧`)
+  }
+}
 
 const isRecording = ref(false)
 const hasRecording = ref(false)
@@ -315,8 +331,15 @@ onBeforeUnmount(() => {
       </div>
 
       <main class="mt-4 flex-1 px-5">
-        <div class="rounded-3xl bg-white p-6 text-center shadow-sm">
-          <div class="flex items-start justify-center gap-2">
+        <div class="relative rounded-3xl bg-white p-6 text-center shadow-sm">
+          <button
+            class="absolute right-4 top-4 text-2xl transition active:scale-90"
+            :aria-label="isFavorite ? '取消收藏' : '收藏单词'"
+            @click="toggleFavorite"
+          >
+            {{ isFavorite ? '⭐' : '☆' }}
+          </button>
+          <div class="flex items-start justify-center gap-2 pr-7">
             <h2 class="text-4xl font-extrabold tracking-wide text-slate-800">
               {{ current.word }}
             </h2>

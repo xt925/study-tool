@@ -83,6 +83,12 @@ interface ProgressState {
   reviewStates: Record<string, ReviewState>
   /** 错题本：答错过的单词，key 为 wordId */
   wrongWords: Record<string, WrongWordRecord>
+  /** 被清出错题本的单词 id -> 清除时间（ISO），同步合并时用来压掉服务器上的旧错题 */
+  wrongClearedAt: Record<string, string>
+  /** 收藏的单词，key 为 wordId */
+  favorites: Record<string, FavoriteRecord>
+  /** 被取消收藏的单词 id -> 取消时间（ISO），同步合并时用来压掉服务器上的旧收藏 */
+  favoriteRemovedAt: Record<string, string>
   /** 连续打卡：当前连续天数（截至 lastActiveDate） */
   streak: number
   /** 历史最长连续天数 */
@@ -113,6 +119,13 @@ export interface WrongWordRecord {
   lastWrongAt: string
 }
 
+/** 收藏夹里的一条：某个单词的收藏记录 */
+export interface FavoriteRecord {
+  wordId: string
+  /** 收藏时间（ISO 字符串），用于排序和同步合并 */
+  addedAt: string
+}
+
 const STATE_VERSION = 1
 
 /** 跟读评分记录只保留最近这么多条，避免长期使用后无限膨胀（会随进度一起同步） */
@@ -120,6 +133,12 @@ const MAX_SPEECH_SCORES = 500
 
 /** 错题本最多保留这么多条，超出后淘汰最早答错的 */
 const MAX_WRONG_WORDS = 200
+
+/** 收藏上限：超出后需要先去收藏夹清理 */
+export const MAX_FAVORITES = 50
+
+/** 删除墓碑最多保留这么多条，避免长期使用后无限膨胀 */
+const MAX_WORD_TOMBSTONES = 300
 
 /** 按时间裁剪评分记录，只保留最新的 MAX_SPEECH_SCORES 条 */
 function trimSpeechScores(records: SpeechScoreRecord[]): SpeechScoreRecord[] {
@@ -156,6 +175,82 @@ function normalizeWrongWords(raw: unknown): Record<string, WrongWordRecord> {
     }
   }
   return out
+}
+
+/** 从任意来源读到的数据里挑出合法的收藏记录 */
+function normalizeFavorites(raw: unknown): Record<string, FavoriteRecord> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out: Record<string, FavoriteRecord> = {}
+  for (const [id, value] of Object.entries(raw as Record<string, Partial<FavoriteRecord>>)) {
+    if (value && typeof value.addedAt === 'string') {
+      out[id] = {
+        wordId: typeof value.wordId === 'string' ? value.wordId : id,
+        addedAt: value.addedAt,
+      }
+    }
+  }
+  return out
+}
+
+/** 删除墓碑（wordId -> 时间）的归一化 */
+function normalizeTimestamps(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out: Record<string, string> = {}
+  for (const [id, at] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof at === 'string') out[id] = at
+  }
+  return out
+}
+
+/** 墓碑表只保留最近的 MAX_WORD_TOMBSTONES 条 */
+function trimTimestamps(map: Record<string, string>): Record<string, string> {
+  const entries = Object.entries(map)
+  if (entries.length <= MAX_WORD_TOMBSTONES) return map
+  return Object.fromEntries(
+    entries.sort((a, b) => b[1].localeCompare(a[1])).slice(0, MAX_WORD_TOMBSTONES),
+  )
+}
+
+/** 两台设备合并墓碑表：同一个单词取更晚的删除时间 */
+function mergeTimestamps(
+  a: Record<string, string>,
+  b: Record<string, string>,
+): Record<string, string> {
+  const out: Record<string, string> = { ...a }
+  for (const [id, at] of Object.entries(b)) {
+    if (!out[id] || at > out[id]) out[id] = at
+  }
+  return trimTimestamps(out)
+}
+
+/** 按删除时间压掉已被清除的错题（删除时间不早于答错时间即视为已清除） */
+function dropClearedWrongWords(
+  wrongWords: Record<string, WrongWordRecord>,
+  clearedAt: Record<string, string>,
+): Record<string, WrongWordRecord> {
+  const out: Record<string, WrongWordRecord> = { ...wrongWords }
+  for (const [id, at] of Object.entries(clearedAt)) {
+    const record = out[id]
+    if (record && at >= record.lastWrongAt) delete out[id]
+  }
+  return out
+}
+
+/** 按取消时间压掉已取消的收藏，并裁到上限（保留最近收藏的） */
+function dropRemovedFavorites(
+  favorites: Record<string, FavoriteRecord>,
+  removedAt: Record<string, string>,
+): Record<string, FavoriteRecord> {
+  const out: Record<string, FavoriteRecord> = { ...favorites }
+  for (const [id, at] of Object.entries(removedAt)) {
+    const record = out[id]
+    if (record && at >= record.addedAt) delete out[id]
+  }
+  const entries = Object.entries(out)
+  if (entries.length <= MAX_FAVORITES) return out
+  return Object.fromEntries(
+    entries.sort((a, b) => b[1].addedAt.localeCompare(a[1].addedAt)).slice(0, MAX_FAVORITES),
+  )
 }
 
 /** 从任意来源读到的数据里挑出合法的成就记录（只认当前定义的成就 id） */
@@ -381,6 +476,9 @@ function loadState(): ProgressState {
     dailyWords: {},
     reviewStates: {},
     wrongWords: {},
+    wrongClearedAt: {},
+    favorites: {},
+    favoriteRemovedAt: {},
     streak: 0,
     maxStreak: 0,
     lastActiveDate: '',
@@ -398,6 +496,12 @@ function loadState(): ProgressState {
       typeof parsed.lastActiveDate === 'string'
     const derived = hasStreak ? null : deriveStreak(dailyWords)
     const petState = normalizePet(parsed.pet)
+    const wrongClearedAt = trimTimestamps(
+      normalizeTimestamps(parsed.wrongClearedAt),
+    )
+    const favoriteRemovedAt = trimTimestamps(
+      normalizeTimestamps(parsed.favoriteRemovedAt),
+    )
     return backfillAchievements(
       ensureReviewStates({
         // 旧版本数据没有这些字段，自动补默认值（相当于一次静默迁移）
@@ -422,7 +526,16 @@ function loadState(): ProgressState {
           : [],
         dailyWords,
         reviewStates: normalizeReviewStates(parsed.reviewStates),
-        wrongWords: normalizeWrongWords(parsed.wrongWords),
+        wrongWords: dropClearedWrongWords(
+          normalizeWrongWords(parsed.wrongWords),
+          wrongClearedAt,
+        ),
+        wrongClearedAt,
+        favorites: dropRemovedFavorites(
+          normalizeFavorites(parsed.favorites),
+          favoriteRemovedAt,
+        ),
+        favoriteRemovedAt,
         streak: hasStreak ? parsed.streak! : (derived?.streak ?? 0),
         maxStreak:
           typeof parsed.maxStreak === 'number'
@@ -477,6 +590,22 @@ export function mergeProgress(
       }
     }
   }
+  // 重练答对后被清掉的错题会留下「清除时间」墓碑：比答错时间新的墓碑优先，
+  // 否则同步合并时服务器上的旧错题又会被并集加回来
+  const wrongClearedAt = mergeTimestamps(
+    a.wrongClearedAt ?? {},
+    b.wrongClearedAt ?? {},
+  )
+  // 收藏同样按并集合并，取消收藏以墓碑时间为准，最终裁到上限
+  const favorites: Record<string, FavoriteRecord> = { ...(a.favorites ?? {}) }
+  for (const [wordId, next] of Object.entries(b.favorites ?? {})) {
+    const current = favorites[wordId]
+    if (!current || next.addedAt < current.addedAt) favorites[wordId] = next
+  }
+  const favoriteRemovedAt = mergeTimestamps(
+    a.favoriteRemovedAt ?? {},
+    b.favoriteRemovedAt ?? {},
+  )
   // 连续打卡：以最近活跃的一天为准；同一天取较大的连续天数，最长记录取历史最大
   const lastActiveDate =
     a.lastActiveDate > b.lastActiveDate ? a.lastActiveDate : b.lastActiveDate
@@ -530,7 +659,10 @@ export function mergeProgress(
     speechScores: trimSpeechScores([...speechScores.values()]),
     dailyWords,
     reviewStates,
-    wrongWords: trimWrongWords(wrongWords),
+    wrongWords: trimWrongWords(dropClearedWrongWords(wrongWords, wrongClearedAt)),
+    wrongClearedAt,
+    favorites: dropRemovedFavorites(favorites, favoriteRemovedAt),
+    favoriteRemovedAt,
     streak,
     maxStreak,
     lastActiveDate,
@@ -577,6 +709,14 @@ export const useProgressStore = defineStore('progress', {
         .map((r) => r.wordId),
     /** 错题本词数，首页入口展示用 */
     wrongWordCount: (state) => Object.keys(state.wrongWords).length,
+    /** 收藏夹里的单词 id，按收藏时间从新到旧排序 */
+    favoriteWordIds: (state) =>
+      Object.values(state.favorites)
+        .sort((a, b) => b.addedAt.localeCompare(a.addedAt))
+        .map((r) => r.wordId),
+    /** 收藏数量，首页入口展示用 */
+    favoriteCount: (state) => Object.keys(state.favorites).length,
+    isFavoriteWord: (state) => (wordId: string) => !!state.favorites[wordId],
     /** 展示用连续天数：超过一天没学，连续链就断了，显示 0 */
     currentStreak: (state) => {
       if (state.lastActiveDate === todayKey()) return state.streak
@@ -683,8 +823,33 @@ export const useProgressStore = defineStore('progress', {
     clearWrongWord(wordId: string) {
       if (this.wrongWords[wordId]) {
         delete this.wrongWords[wordId]
+        // 记下清除时间，避免同步时被服务器上的旧错题合并回来
+        this.wrongClearedAt[wordId] = new Date().toISOString()
+        this.wrongClearedAt = trimTimestamps(this.wrongClearedAt)
         this.stars += 5
       }
+      this.persist()
+    },
+    /** 收藏一个单词：已收藏直接成功，收藏夹满 50 个返回 false */
+    addFavorite(wordId: string): boolean {
+      if (this.favorites[wordId]) return true
+      if (Object.keys(this.favorites).length >= MAX_FAVORITES) return false
+      this.favorites[wordId] = { wordId, addedAt: new Date().toISOString() }
+      this.persist()
+      return true
+    },
+    /** 取消收藏（支持批量）；取消后留下墓碑，避免同步合并又被服务器加回来 */
+    removeFavorites(wordIds: string[]) {
+      const at = new Date().toISOString()
+      let changed = false
+      for (const wordId of wordIds) {
+        if (!this.favorites[wordId]) continue
+        delete this.favorites[wordId]
+        this.favoriteRemovedAt[wordId] = at
+        changed = true
+      }
+      if (!changed) return
+      this.favoriteRemovedAt = trimTimestamps(this.favoriteRemovedAt)
       this.persist()
     },
     recordSpeechScore(
