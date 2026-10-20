@@ -29,6 +29,9 @@ function baseState(overrides: Partial<ProgressState> = {}): ProgressState {
     dailyWords: {},
     reviewStates: {},
     wrongWords: {},
+    wrongClearedAt: {},
+    favorites: {},
+    favoriteRemovedAt: {},
     streak: 0,
     maxStreak: 0,
     lastActiveDate: '',
@@ -171,6 +174,61 @@ describe('错题本', () => {
     const { store } = createStore()
     for (let i = 0; i < 205; i += 1) store.recordWrong(`w${i}`)
     expect(store.wrongWordCount).toBe(200)
+  })
+
+  it('重练答对清除后，同步合并服务器旧错题不会把它加回来', () => {
+    const { store } = createStore()
+    store.recordWrong('w1')
+    store.clearWrongWord('w1')
+
+    // 服务器上还是清除前的旧数据
+    const server = baseState({
+      wrongWords: {
+        w1: {
+          wordId: 'w1',
+          count: 1,
+          lastWrongAt: '2020-01-01T00:00:00.000Z',
+        },
+      },
+    })
+    const merged = mergeProgress(server, store.exportProgress())
+    expect(merged.wrongWords.w1).toBeUndefined()
+  })
+})
+
+describe('收藏', () => {
+  it('收藏上限 50 个，超出后拒绝新增', () => {
+    const { store } = createStore()
+    for (let i = 0; i < 50; i += 1) {
+      expect(store.addFavorite(`w${i}`)).toBe(true)
+    }
+    expect(store.addFavorite('w50')).toBe(false)
+    expect(store.favoriteCount).toBe(50)
+    expect(store.isFavoriteWord('w0')).toBe(true)
+  })
+
+  it('重复收藏同一个单词只保留一条', () => {
+    const { store } = createStore()
+    store.addFavorite('w1')
+    store.addFavorite('w1')
+    expect(store.favoriteCount).toBe(1)
+  })
+
+  it('批量取消收藏后，同步合并服务器旧收藏不会复活', () => {
+    const { store } = createStore()
+    store.addFavorite('w1')
+    store.addFavorite('w2')
+    store.removeFavorites(['w1'])
+
+    const server = baseState({
+      favorites: {
+        w1: { wordId: 'w1', addedAt: '2020-01-01T00:00:00.000Z' },
+        w2: { wordId: 'w2', addedAt: '2020-01-02T00:00:00.000Z' },
+      },
+    })
+    const merged = mergeProgress(server, store.exportProgress())
+    expect(merged.favorites.w1).toBeUndefined()
+    expect(merged.favorites.w2).toBeTruthy()
   })
 })
 

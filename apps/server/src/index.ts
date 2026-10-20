@@ -70,6 +70,24 @@ function normalizeProgress(raw: unknown): ProgressState {
       !Array.isArray(p.wrongWords)
         ? p.wrongWords
         : {},
+    wrongClearedAt:
+      p.wrongClearedAt &&
+      typeof p.wrongClearedAt === 'object' &&
+      !Array.isArray(p.wrongClearedAt)
+        ? p.wrongClearedAt
+        : {},
+    favorites:
+      p.favorites &&
+      typeof p.favorites === 'object' &&
+      !Array.isArray(p.favorites)
+        ? p.favorites
+        : {},
+    favoriteRemovedAt:
+      p.favoriteRemovedAt &&
+      typeof p.favoriteRemovedAt === 'object' &&
+      !Array.isArray(p.favoriteRemovedAt)
+        ? p.favoriteRemovedAt
+        : {},
     streak: typeof p.streak === 'number' ? p.streak : 0,
     maxStreak: typeof p.maxStreak === 'number' ? p.maxStreak : 0,
     lastActiveDate:

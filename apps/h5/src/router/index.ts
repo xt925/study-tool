@@ -4,6 +4,7 @@ import AdminView from '@/views/AdminView.vue'
 import AchievementsView from '@/views/AchievementsView.vue'
 import BattleGame from '@/views/BattleGame.vue'
 import ChangePasswordView from '@/views/ChangePasswordView.vue'
+import FavoritesView from '@/views/FavoritesView.vue'
 import PetView from '@/views/PetView.vue'
 import GamesView from '@/views/GamesView.vue'
 import GradesView from '@/views/GradesView.vue'
@@ -12,6 +13,7 @@ import LearnView from '@/views/LearnView.vue'
 import ListenGame from '@/views/ListenGame.vue'
 import LoginView from '@/views/LoginView.vue'
 import MatchGame from '@/views/MatchGame.vue'
+import PracticeView from '@/views/PracticeView.vue'
 import ProfileView from '@/views/ProfileView.vue'
 import QuizView from '@/views/QuizView.vue'
 import ReviewView from '@/views/ReviewView.vue'
@@ -60,6 +62,8 @@ export const router = createRouter({
       meta: { title: '练习' },
     },
     { path: '/games', name: 'games', component: GamesView, meta: { title: '游戏乐园' } },
+    { path: '/practice', name: 'practice', component: PracticeView, meta: { title: '📝 练习' } },
+    { path: '/favorites', name: 'favorites', component: FavoritesView, meta: { title: '⭐ 我的收藏' } },
     { path: '/review', name: 'review', component: ReviewView, meta: { title: '🔁 复习' } },
     { path: '/wrong', name: 'wrong-book', component: WrongBookView, meta: { title: '📕 错题本' } },
     { path: '/achievements', name: 'achievements', component: AchievementsView, meta: { title: '🏆 成就' } },

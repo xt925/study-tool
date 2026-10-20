@@ -74,19 +74,20 @@ function buildLetterBank(word: string, blankIndexes: number[]): string[] {
   return shuffle([...needed, ...distractors])
 }
 
-/** 基于一个 unit 生成 count 道混合题（4 种题型轮换打乱） */
-export function generateQuiz(unit: Unit, count = 8): Question[] {
+/** 基于一组单词生成 count 道混合题（4 种题型轮换打乱），可自定义练习范围 */
+export function generateQuizFromWords(words: Word[], count = 8): Question[] {
   const all = getAllWords()
+  const pool = [...words, ...all]
   const types: QuestionType[] = ['en2zh', 'zh2en', 'listen', 'spell']
-  const words = shuffle(unit.words).slice(0, count)
-  const questions: Question[] = words.map((word, i) => {
+  const picked = shuffle(words).slice(0, count)
+  return picked.map((word, i) => {
     let type = types[i % types.length]
     // 词组带空格，不适合拼写题，换成听音选词
     if (type === 'spell' && (word.isPhrase || word.word.includes(' '))) {
       type = 'listen'
     }
     if (type === 'en2zh') {
-      const distractors = pickDistractors(word, [...unit.words, ...all], 3)
+      const distractors = pickDistractors(word, pool, 3)
       return {
         type,
         word,
@@ -94,7 +95,7 @@ export function generateQuiz(unit: Unit, count = 8): Question[] {
       }
     }
     if (type === 'zh2en' || type === 'listen') {
-      const distractors = pickDistractors(word, [...unit.words, ...all], 3)
+      const distractors = pickDistractors(word, pool, 3)
       return {
         type,
         word,
@@ -110,5 +111,9 @@ export function generateQuiz(unit: Unit, count = 8): Question[] {
       blankIndexes,
     }
   })
-  return questions
+}
+
+/** 基于一个 unit 生成 count 道混合题（4 种题型轮换打乱） */
+export function generateQuiz(unit: Unit, count = 8): Question[] {
+  return generateQuizFromWords(unit.words, count)
 }
