@@ -35,6 +35,13 @@ import {
   nextReviewState,
   type ReviewState,
 } from '../utils/review'
+import {
+  buildChapters,
+  currentChapterOf,
+  knowledgeMarksOf,
+  normalizeListenResults,
+  type ListenResult,
+} from '../utils/chapters'
 
 const STORAGE_KEY = 'english-h5-progress'
 
@@ -77,6 +84,8 @@ interface ProgressState {
   learnedWords: string[]
   completedUnits: string[]
   speechScores: SpeechScoreRecord[]
+  /** 每个单元的听力挑战最好成绩，key 为 unitId；章节地图的听力节点用 */
+  listenResults: Record<string, ListenResult>
   /** 按 "YYYY-MM-DD" 记录每日已学单词数 */
   dailyWords: Record<string, number>
   /** 每个已学单词的复习状态，key 为 wordId */
@@ -473,6 +482,7 @@ function loadState(): ProgressState {
     learnedWords: [],
     completedUnits: [],
     speechScores: [],
+    listenResults: {},
     dailyWords: {},
     reviewStates: {},
     wrongWords: {},
@@ -524,6 +534,7 @@ function loadState(): ProgressState {
         speechScores: Array.isArray(parsed.speechScores)
           ? trimSpeechScores(parsed.speechScores)
           : [],
+        listenResults: normalizeListenResults(parsed.listenResults),
         dailyWords,
         reviewStates: normalizeReviewStates(parsed.reviewStates),
         wrongWords: dropClearedWrongWords(
@@ -564,6 +575,20 @@ export function mergeProgress(
   const speechScores = new Map<string, SpeechScoreRecord>()
   for (const record of [...a.speechScores, ...b.speechScores]) {
     speechScores.set(record.id, record)
+  }
+  // 听力成绩按单元取「答对更多」的一轮，同分取更新的记录
+  const listenResults: Record<string, ListenResult> = {
+    ...(a.listenResults ?? {}),
+  }
+  for (const [unitId, next] of Object.entries(b.listenResults ?? {})) {
+    const current = listenResults[unitId]
+    if (
+      !current ||
+      next.correct > current.correct ||
+      (next.correct === current.correct && next.at > current.at)
+    ) {
+      listenResults[unitId] = next
+    }
   }
   // 复习记录按 wordId 取「最近复习过」的一条：多设备各自复习时，进度新的一方胜出
   const reviewStates: Record<string, ReviewState> = { ...a.reviewStates }
@@ -657,6 +682,7 @@ export function mergeProgress(
     learnedWords: [...new Set([...a.learnedWords, ...b.learnedWords])],
     completedUnits: [...new Set([...a.completedUnits, ...b.completedUnits])],
     speechScores: trimSpeechScores([...speechScores.values()]),
+    listenResults,
     dailyWords,
     reviewStates,
     wrongWords: trimWrongWords(dropClearedWrongWords(wrongWords, wrongClearedAt)),
@@ -727,6 +753,12 @@ export const useProgressStore = defineStore('progress', {
     checkedInToday: (state) => state.lastActiveDate === todayKey(),
     /** 判断成就用的当前指标，成就页展示进度也用 */
     achievementContext: (state): AchievementContext => contextOf(state),
+    /** 知识印记总数：复习到掌握阶段的单词数，每个词最多产出一枚 */
+    knowledgeMarks: (state) => knowledgeMarksOf(state),
+    /** 章节地图：按教材顺序的全部单元及其实时进度 */
+    chapters: (state) => buildChapters(state),
+    /** 当前应该继续的章节（首页入口展示） */
+    currentChapter: (state) => currentChapterOf(state),
   },
   actions: {
     persist() {
@@ -868,6 +900,18 @@ export const useProgressStore = defineStore('progress', {
     answerCorrect() {
       // 答对题目 +10⭐
       this.addStars(10)
+    },
+    /** 记录一轮听力挑战的成绩：只保留该单元最好的一轮，不叠加 */
+    recordListenResult(unitId: string, correct: number, total: number) {
+      if (total <= 0 || correct <= 0) return
+      const prev = this.listenResults[unitId]
+      if (prev && prev.correct >= correct) return
+      this.listenResults[unitId] = {
+        correct,
+        total,
+        at: new Date().toISOString(),
+      }
+      this.persist()
     },
     completeUnit(unitId: string) {
       // 完成单元 +30⭐（重复完成不重复加星，只标记）

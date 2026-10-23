@@ -232,6 +232,37 @@ describe('收藏', () => {
   })
 })
 
+describe('听力挑战', () => {
+  it('同一单元只保留答对更多的一轮', () => {
+    const { store } = createStore()
+    store.recordListenResult('u1', 3, 5)
+    expect(store.listenResults.u1.correct).toBe(3)
+
+    store.recordListenResult('u1', 2, 5)
+    expect(store.listenResults.u1.correct).toBe(3)
+
+    store.recordListenResult('u1', 5, 5)
+    expect(store.listenResults.u1.correct).toBe(5)
+  })
+
+  it('同步合并时按单元取最好成绩', () => {
+    const a = baseState({
+      listenResults: {
+        u1: { correct: 3, total: 5, at: '2026-10-01T00:00:00.000Z' },
+      },
+    })
+    const b = baseState({
+      listenResults: {
+        u1: { correct: 4, total: 5, at: '2026-10-02T00:00:00.000Z' },
+        u2: { correct: 5, total: 5, at: '2026-10-02T00:00:00.000Z' },
+      },
+    })
+    const merged = mergeProgress(a, b)
+    expect(merged.listenResults.u1.correct).toBe(4)
+    expect(merged.listenResults.u2.correct).toBe(5)
+  })
+})
+
 describe('成就', () => {
   it('达成条件时自动解锁', () => {
     const { store } = createStore()

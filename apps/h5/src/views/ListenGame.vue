@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import AppButton from '@/components/AppButton.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import UnitPicker from '@/components/UnitPicker.vue'
 import RewardOverlay from '@/components/RewardOverlay.vue'
-import { getAllWords, shuffle, type Unit, type Word } from '@study/core'
+import { findUnit, getAllWords, shuffle, type Unit, type Word } from '@study/core'
 import { useProgressStore } from '@/stores/progress'
 import { speak } from '@/utils/audio'
 
+const route = useRoute()
 const router = useRouter()
 const progress = useProgressStore()
 
@@ -20,6 +21,7 @@ const options = ref<string[][]>([])
 const index = ref(0)
 const streak = ref(0)
 const bestStreak = ref(0)
+const correctCount = ref(0)
 const answered = ref(false)
 const wasCorrect = ref(false)
 const picked = ref('')
@@ -38,6 +40,7 @@ function start(unit: Unit) {
   index.value = 0
   streak.value = 0
   bestStreak.value = 0
+  correctCount.value = 0
   answered.value = false
   wasCorrect.value = false
   picked.value = ''
@@ -57,6 +60,7 @@ function choose(opt: string) {
   if (wasCorrect.value) {
     streak.value += 1
     bestStreak.value = Math.max(bestStreak.value, streak.value)
+    correctCount.value += 1
     progress.addStars(10) // 连对加分
   } else {
     streak.value = 0
@@ -71,6 +75,14 @@ function next() {
     wasCorrect.value = false
     picked.value = ''
   } else {
+    // 一轮结束时记下最好成绩，章节地图的听力节点据此判断是否通过
+    if (selectedUnit.value) {
+      progress.recordListenResult(
+        selectedUnit.value.id,
+        correctCount.value,
+        questions.value.length,
+      )
+    }
     showReward.value = true
   }
 }
@@ -78,6 +90,11 @@ function next() {
 function restart() {
   selectedUnit.value = null
 }
+
+// 从章节地图带 ?unit= 进来时直接开始这一章的听力挑战
+const presetUnit =
+  typeof route.query.unit === 'string' ? findUnit(route.query.unit) : undefined
+if (presetUnit) start(presetUnit)
 </script>
 
 <template>
@@ -90,8 +107,12 @@ function restart() {
 
     <template v-else>
       <div class="mt-4 px-5 text-center">
-        <p class="text-sm text-slate-400">
-          第 {{ index + 1 }} / {{ TOTAL }} 题 · 当前连对 🔥{{ streak }}
+        <p class="text-sm font-bold text-slate-500">
+          {{ selectedUnit.title
+          }}{{ selectedUnit.name ? ' · ' + selectedUnit.name : '' }}
+        </p>
+        <p class="mt-1 text-sm text-slate-400">
+          第 {{ index + 1 }} / {{ questions.length }} 题 · 当前连对 🔥{{ streak }}
         </p>
       </div>
 
@@ -139,7 +160,7 @@ function restart() {
           {{ wasCorrect ? '🎉 答对 +10⭐' : `😅 正确答案是 ${questions[index]?.word}` }}
         </div>
         <AppButton class="mt-3" @click="next">
-          {{ index < TOTAL - 1 ? '下一题' : '完成' }}
+          {{ index < questions.length - 1 ? '下一题' : '完成' }}
         </AppButton>
       </div>
 
@@ -153,7 +174,7 @@ function restart() {
     <RewardOverlay
       :show="showReward"
       title="挑战完成！"
-      :message="`5 题结束，最高连对 🔥${bestStreak}，继续加油！`"
+      :message="`${questions.length} 题答对 ${correctCount} 个，最高连对 🔥${bestStreak}，继续加油！`"
       button-text="🔄 再玩一次"
       @close="showReward = false; restart()"
     />

@@ -17,6 +17,7 @@ const percent = computed(() =>
 )
 
 const pet = computed(() => progress.pet)
+const chapter = computed(() => progress.currentChapter)
 const petTitle = computed(() =>
   pet.value ? `${pet.value.name} · Lv.${pet.value.level}` : '领养一只学习伙伴',
 )
@@ -90,6 +91,35 @@ const goalReached = computed(() => {
       <h1 class="text-3xl font-extrabold text-slate-800">🐶 English Adventure</h1>
       <p class="mt-1 text-slate-400">每天学一点，英语大冒险！</p>
     </header>
+
+    <!-- 冒险地图：把教材单元做成可推进的章节，下一步始终可见 -->
+    <button
+      class="mt-4 w-full rounded-3xl bg-gradient-to-r from-indigo-500 to-sky-500 p-4 text-left text-white shadow-sm transition active:scale-[0.99]"
+      @click="router.push('/adventure')"
+    >
+      <div class="flex items-center justify-between">
+        <span class="text-sm font-extrabold">🗺 冒险地图</span>
+        <span class="text-xs text-white/80"
+          >🧠 {{ progress.knowledgeMarks }} 枚印记 ›</span
+        >
+      </div>
+      <p v-if="chapter" class="mt-1 truncate text-xs text-white/85">
+        当前：{{ chapter.unit.title
+        }}{{ chapter.unit.name ? ' · ' + chapter.unit.name : '' }} · 已完成
+        {{ chapter.doneCount }}/4
+      </p>
+      <p v-else class="mt-1 text-xs text-white/85">
+        🎉 全部章节已点亮，去复习里守住成果
+      </p>
+      <div v-if="chapter" class="mt-2 flex gap-1.5">
+        <span
+          v-for="node in chapter.nodes"
+          :key="node.id"
+          class="h-1.5 flex-1 rounded-full"
+          :class="node.done ? 'bg-white' : 'bg-white/25'"
+        ></span>
+      </div>
+    </button>
 
     <section
       class="mt-4 flex items-center justify-between rounded-3xl bg-gradient-to-r from-orange-400 to-amber-400 px-5 py-4 text-white shadow-sm"

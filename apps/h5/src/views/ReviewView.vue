@@ -1,30 +1,41 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import AppButton from '@/components/AppButton.vue'
 import OptionButton from '@/components/OptionButton.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import ProgressDots from '@/components/ProgressDots.vue'
 import RewardOverlay from '@/components/RewardOverlay.vue'
-import { getAllWords, getWordById, meaningOf, shuffle, type Word } from '@study/core'
+import { findUnit, getAllWords, getWordById, meaningOf, shuffle, type Word } from '@study/core'
 import { useProgressStore } from '@/stores/progress'
 import { speak } from '@/utils/audio'
 
+const route = useRoute()
 const router = useRouter()
 const progress = useProgressStore()
 
 /** 单次复习上限：到期词再多也一次只做这么多，避免被一大串待复习吓退 */
 const SESSION_SIZE = 20
 
+// 支持从章节地图带 ?unit= 进入：只复习这一章的词
+const filterUnit =
+  typeof route.query.unit === 'string' ? findUnit(route.query.unit) : undefined
+const filterIds = filterUnit
+  ? new Set(filterUnit.words.map((word) => word.id))
+  : null
+const candidates = filterIds
+  ? progress.dueReviewIds.filter((id) => filterIds.has(id))
+  : progress.dueReviewIds
+
 // 进入页面时把到期单词快照下来，复习中不再随进度变动而增删（否则答完就从队列里消失）
 const queue = ref<Word[]>(
-  progress.dueReviewIds
+  candidates
     .slice(0, SESSION_SIZE)
     .map((id) => getWordById(id))
     .filter((w): w is Word => !!w),
 )
-const totalDue = ref(progress.dueReviewCount)
+const totalDue = ref(candidates.length)
 
 const index = ref(0)
 const answered = ref(false)
@@ -70,12 +81,21 @@ function next() {
 
 <template>
   <div class="min-h-screen pb-10">
-    <PageHeader title="🔁 复习" @back="router.back()" />
+    <PageHeader
+      :title="
+        filterUnit
+          ? `🔁 复习 · ${filterUnit.name ?? filterUnit.title}`
+          : '🔁 复习'
+      "
+      @back="router.back()"
+    />
 
     <!-- 没有到期单词 -->
     <div v-if="queue.length === 0" class="mt-16 px-6 text-center">
       <div class="text-6xl">🎉</div>
-      <p class="mt-4 text-lg font-bold text-slate-700">今天没有需要复习的单词</p>
+      <p class="mt-4 text-lg font-bold text-slate-700">
+        {{ filterUnit ? '这一章今天没有需要复习的单词' : '今天没有需要复习的单词' }}
+      </p>
       <p class="mt-1 text-sm text-slate-400">
         学过的单词会按间隔自动排进复习队列，明天再来看看吧
       </p>

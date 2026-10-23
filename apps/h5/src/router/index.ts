@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import AdminView from '@/views/AdminView.vue'
 import AchievementsView from '@/views/AchievementsView.vue'
+import AdventureView from '@/views/AdventureView.vue'
 import BattleGame from '@/views/BattleGame.vue'
 import ChangePasswordView from '@/views/ChangePasswordView.vue'
 import FavoritesView from '@/views/FavoritesView.vue'
@@ -37,6 +38,12 @@ export const router = createRouter({
       meta: { title: '修改密码' },
     },
     { path: '/grades', name: 'grades', component: GradesView, meta: { title: '选择年级' } },
+    {
+      path: '/adventure',
+      name: 'adventure',
+      component: AdventureView,
+      meta: { title: '🗺 冒险地图' },
+    },
     {
       path: '/grades/:gradeId',
       name: 'units',

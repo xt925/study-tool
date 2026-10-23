@@ -1,6 +1,7 @@
 export * from './data/words'
 export * from './utils/quiz'
 export * from './utils/review'
+export * from './utils/chapters'
 export * from './utils/achievements'
 export * from './utils/pet'
 export * from './utils/outfits'
